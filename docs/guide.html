@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>部落远征 · 游戏说明</title>
+<style>
+  :root {
+    --bg: #1a120c;
+    --panel: #2a1d12;
+    --border: #8a6a30;
+    --gold: #ffcf4a;
+    --text: #efe3c8;
+    --muted: #b8a888;
+    --blue: #9fe3ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(ellipse at top, #3a2614 0%, var(--bg) 60%);
+    color: var(--text);
+    font: 16px/1.75 "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  }
+  main { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 {
+    margin: 0 0 4px;
+    font-size: 44px;
+    color: var(--gold);
+    text-shadow: 0 3px 0 #000, 0 0 18px rgba(255, 180, 40, 0.35);
+    letter-spacing: 4px;
+  }
+  .subtitle { color: var(--muted); margin-bottom: 28px; }
+  h2 {
+    color: var(--gold);
+    font-size: 22px;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 6px;
+    margin-top: 40px;
+  }
+  .lead {
+    background: var(--panel);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 22px;
+  }
+  .lead p { margin: 0 0 10px; }
+  .lead p:last-child { margin-bottom: 0; }
+  a { color: var(--blue); }
+  code {
+    background: #120b06;
+    border: 1px solid #4a3620;
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-family: Menlo, Consolas, monospace;
+    font-size: 14px;
+    color: #ffe0a0;
+  }
+  figure { margin: 24px 0; text-align: center; }
+  figure img {
+    width: 340px;
+    max-width: 100%;
+    border: 3px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  }
+  figcaption { color: var(--muted); font-size: 14px; margin-top: 8px; }
+  ul { padding-left: 22px; }
+  li { margin: 6px 0; }
+  li ul { margin-top: 4px; }
+  strong { color: #ffe9b0; }
+  .tag {
+    display: inline-block;
+    background: #7a1a10;
+    border: 1px solid var(--gold);
+    color: #ffeec2;
+    border-radius: 6px;
+    padding: 0 8px;
+    font-size: 14px;
+  }
+  footer { margin-top: 48px; color: var(--muted); font-size: 13px; text-align: center; }
+</style>
+</head>
+<body>
+<main>
+  <h1>部落远征</h1>
+  <div class="subtitle">Horde Expedition · 魔兽风格回合制肉鸽卡牌对战</div>
+
+  <div class="lead">
+    <p>游戏已经做好，可以玩了。它是一个竖屏网页游戏，项目在 <code>~/Projects/warcraft-roguelike</code>，开发服务器运行时，浏览器打开 <a href="http://localhost:5199/">http://localhost:5199/</a> 就能玩。</p>
+    <p>我用无头 Chrome 自动跑了几局，覆盖了出牌、回合结算、BOSS 战、战利品选择、前进到下一波和失败界面，没有报错。不过自动脚本出牌很笨，还没赢过一波正常难度的战斗，所以数值平衡只粗调过一次，需要你亲手玩几局来判断。</p>
+  </div>
+
+  <figure>
+    <img src="boss_fight.png" alt="BOSS 战截图" />
+    <figcaption>第 5 波 BOSS 战：冰霜骨龙</figcaption>
+  </figure>
+
+  <h2>玩法</h2>
+  <ul>
+    <li><strong>回合：</strong>每回合 3 点能量、抽 5 张牌。兵牌召唤英雄上场，最多 5 个；法术牌立即生效。点「结束回合」后，英雄按各自技能自动攻击，然后轮到敌人。</li>
+    <li><strong>英雄（6 个）：</strong>
+      <ul>
+        <li>兽人步兵：攻击最前方的敌人</li>
+        <li>巨魔猎手：连投两次飞斧，优先打残血</li>
+        <li>牛头人萨满：嘲讽，每回合群体治疗</li>
+        <li>冰霜法师：攻击全部敌人</li>
+        <li>矮人狂战士：有几率眩晕目标</li>
+        <li>月神祭司：治疗血量最低的友军</li>
+      </ul>
+    </li>
+    <li><strong>升星：</strong>场上已有同名英雄时再打出这张牌，英雄升一星，最高 5 星。</li>
+    <li><strong>法术（7 张）：</strong>火球术、斩杀、暴风雪、闪电链、治疗波、嗜血术、盾墙。</li>
+    <li><strong>一路往前打：</strong>清空一波后三选一奖励（新卡、修缮大本营、法术强化等），然后背景向前滚动，部落进入下一波。英雄带着血量和星级跟进下一波。</li>
+    <li><strong>BOSS：</strong><span class="tag">每 5 波</span> 一个，依次是冰霜骨龙、霜冠巫妖、恐惧魔王，之后循环并逐轮变强。每个 BOSS 每隔几回合放一次大招（冰霜吐息、召唤亡灵加冰冻、邪能火雨），击败后可以选「能量上限 +1」或「全体英雄升星」。</li>
+    <li><strong>失败：</strong>大本营血量归零即结束，会记录最远到达的波次。</li>
+  </ul>
+
+  <h2>素材</h2>
+  <ul>
+    <li><strong>立绘和战场背景：</strong>是 AI 生成的原创魔兽风格图，没有用网上下载的暴雪原图，避免版权问题。替换成你自己的素材时，把 <code>public/assets/</code> 里的同名文件覆盖掉就行。</li>
+    <li><strong>法术图标：</strong>下载自 <a href="https://game-icons.net">game-icons.net</a>，免费，采用 CC BY 3.0 协议，菜单底部已经加了署名。</li>
+  </ul>
+
+  <h2>需要知道的几点</h2>
+  <ul>
+    <li><strong>测试参数：</strong>网址后加 <code>?wave=5</code> 可以直接从指定波次开始，比如直接打 BOSS。</li>
+    <li><strong>调数值：</strong>卡牌、英雄、敌人、BOSS 的数值和波次生成都在 <code>src/data.ts</code>。</li>
+    <li><strong>背景翻转：</strong>为了让背景能无缝循环滚动，战场图做了上下镜像拼接，所以前进几波后会看到倒过来的旗帜和树木。之后要改的话，可以换一张专门做成首尾相接的背景图。</li>
+    <li><strong>重新启动：</strong>以后自己运行用 <code>npm run dev</code>，地址是 <a href="http://localhost:5173/">http://localhost:5173</a>。</li>
+  </ul>
+
+  <footer>代码已提交到项目的 git 仓库 · 部落远征</footer>
+</main>
+</body>
+</html>
