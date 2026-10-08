@@ -1,0 +1,4 @@
+{
+  "arts": ["p_orc", "p_troll", "p_tauren", "p_mage", "p_dwarf", "p_elf"],
+  "yaw": { "p_tauren": 0, "p_mage": 0, "p_dwarf": 0, "p_elf": 0 }
+}

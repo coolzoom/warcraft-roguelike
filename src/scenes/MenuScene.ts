@@ -1,22 +1,26 @@
 import Phaser from 'phaser';
 import { BOSS_EVERY } from '../data';
-import { txt } from '../ui';
+import { MODEL_DEFS, aiModelCount, getModelSet, setModelSet } from '../three/models';
+import { button, openSettings, txt } from '../ui';
+import { talentPoints } from '../meta';
+import { Background, addBackground } from '../three/battlefield';
 
 export class MenuScene extends Phaser.Scene {
-  private bg!: Phaser.GameObjects.TileSprite;
+  private bg!: Background;
+  private scroll = 0;
 
   constructor() {
     super('menu');
   }
 
   update() {
-    this.bg.tilePositionY -= 0.4;
+    this.scroll -= 0.4;
+    this.bg.setScroll(this.scroll);
   }
 
   create() {
     const { width, height } = this.scale;
-    this.bg = this.add.tileSprite(0, 0, width, height, 'bg_loop').setOrigin(0);
-    this.bg.tileScaleX = this.bg.tileScaleY = width / this.textures.get('bg').getSourceImage().width;
+    this.bg = addBackground(this);
     this.add.rectangle(0, 0, width, height, 0x000000, 0.45).setOrigin(0);
 
     const heroes = ['p_orc', 'p_mage', 'p_dwarf'];
@@ -40,9 +44,14 @@ export class MenuScene extends Phaser.Scene {
     lines.forEach((l, i) => txt(this, width / 2, 480 + i * 34, `· ${l}`, 17, '#e8dcc0', 4));
 
     const best = Number(localStorage.getItem('horde_best') || 0);
-    if (best > 0) txt(this, width / 2, 680, `最远到达：第 ${best} 波`, 18, '#9fe3ff', 4);
+    if (best > 0) txt(this, width / 2, 650, `最远到达：第 ${best} 波`, 18, '#9fe3ff', 4);
 
-    const btn = this.add.container(width / 2, 770);
+    const nav = this.add.container(0, 0);
+    const pts = talentPoints();
+    button(this, nav, width / 2 - 90, 698, 160, 52, '🃏 卡组', () => this.scene.start('deck')).draw(false);
+    button(this, nav, width / 2 + 90, 698, 160, 52, pts > 0 ? `⭐ 天赋 (${pts})` : '⭐ 天赋', () => this.scene.start('talents')).draw(pts > 0);
+
+    const btn = this.add.container(width / 2, 790);
     const g = this.add.graphics();
     g.fillStyle(0x7a1a10, 1).fillRoundedRect(-120, -36, 240, 72, 16);
     g.lineStyle(4, 0xffcf4a, 1).strokeRoundedRect(-120, -36, 240, 72, 16);
@@ -54,6 +63,16 @@ export class MenuScene extends Phaser.Scene {
       this.cameras.main.fadeOut(300, 0, 0, 0);
       this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('battle'));
     });
+
+    const gear = txt(this, width - 44, 40, '⚙ 设置', 18, '#ffeec2', 4).setInteractive({ useHandCursor: true });
+    gear.on('pointerdown', () =>
+      openSettings(this, {
+        modelSet: getModelSet(),
+        aiCount: aiModelCount,
+        aiTotal: Object.keys(MODEL_DEFS).length,
+        setModelSet,
+      }),
+    );
 
     txt(this, width / 2, height - 24, '美术：AI 生成立绘 · 图标 game-icons.net (CC BY 3.0)', 12, '#a09070', 3);
   }

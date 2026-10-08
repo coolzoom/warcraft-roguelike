@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { CARDS, RARITY_COLOR, RARITY_STARS, SPELLS, UNITS } from './data';
+import { Action } from './three/animator';
+import { ATLAS_KEY, ModelHandle, getStage } from './three/stage';
 
 export const FONT = '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif';
 
@@ -48,6 +50,7 @@ export class UnitView extends Phaser.GameObjects.Container {
   readonly portrait: Phaser.GameObjects.Image;
   private barW: number;
   private idle?: Phaser.Tweens.Tween;
+  private model: ModelHandle | null = null;
 
   constructor(scene: Phaser.Scene, x: number, y: number, art: string, ally: boolean, boss: boolean) {
     super(scene, x, y);
@@ -56,12 +59,29 @@ export class UnitView extends Phaser.GameObjects.Container {
     const teamColor = ally ? 0x4aa3ff : 0xe0453a;
 
     const shadow = scene.add.ellipse(0, r * 0.85, r * 1.9, r * 0.6, 0x000000, 0.45);
-    this.targetRing = scene.add.circle(0, 0, r + 9).setStrokeStyle(4, 0xffe066).setVisible(false);
-    this.ring = scene.add.circle(0, 0, r + 3, 0x000000).setStrokeStyle(4, boss ? 0xb44dff : teamColor);
-    this.portrait = scene.add.image(0, 0, `c_${art}`).setDisplaySize(r * 2, r * 2);
+    this.targetRing = scene.add.circle(0, r * 0.85, r + 9).setStrokeStyle(4, 0xffe066).setVisible(false);
+    this.targetRing.setScale(1, 0.45);
+
+    this.model = scene.textures.exists(ATLAS_KEY) ? getStage().create(art, boss) : null;
+    if (this.model) {
+      // 3D model rendered into the shared atlas; feet planted on the shadow.
+      const m = this.model;
+      const size = boss ? r * 4.1 : r * 3.4;
+      this.ring = scene.add.circle(0, r * 0.85, r * 0.95).setStrokeStyle(3, boss ? 0xb44dff : teamColor, 0.9).setScale(1, 0.4);
+      this.portrait = scene.add.image(0, r * 0.85, ATLAS_KEY, m.frame).setOrigin(0.5, m.footY).setDisplaySize(size, size);
+      // Enemies face the heroes (toward the camera); heroes stand three-quarters so their faces read.
+      m.setFacing(ally ? Math.sign(scene.scale.width / 2 - x) * 0.45 : 0);
+      this.portrait.setInteractive({
+        hitArea: new Phaser.Geom.Rectangle(m.size * 0.22, m.size * 0.15, m.size * 0.56, m.size * (m.footY - 0.1)),
+        hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+      });
+    } else {
+      this.ring = scene.add.circle(0, 0, r + 3, 0x000000).setStrokeStyle(4, boss ? 0xb44dff : teamColor);
+      this.portrait = scene.add.image(0, 0, `c_${art}`).setDisplaySize(r * 2, r * 2);
+    }
 
     this.barW = boss ? 130 : 74;
-    const barY = -r - 16;
+    const barY = this.model ? r * 0.85 - (boss ? r * 4.1 : r * 3.4) * 0.66 - 4 : -r - 16;
     const barBg = scene.add.rectangle(0, barY, this.barW + 4, 12, 0x140c06).setStrokeStyle(1, 0x000000);
     this.hpFill = scene.add
       .rectangle(-this.barW / 2, barY, this.barW, 8, ally ? 0x3d8bff : 0xe23b2e)
@@ -78,7 +98,7 @@ export class UnitView extends Phaser.GameObjects.Container {
     this.add([shadow, this.targetRing, this.ring, this.portrait, barBg, this.hpFill, badge, this.hpText, this.shieldText, atkBadge, atkIcon, this.atkText, this.starText, this.stunText]);
     scene.add.existing(this);
 
-    this.idle = scene.tweens.add({
+    if (!this.model) this.idle = scene.tweens.add({
       targets: this.portrait,
       scaleY: this.portrait.scaleY * 1.03,
       duration: 900 + Math.random() * 400,
@@ -108,7 +128,21 @@ export class UnitView extends Phaser.GameObjects.Container {
     }
   }
 
+  /** Play a 3D action; resolves at the moment of impact (immediately without a model). */
+  act(action: Action): Promise<void> {
+    return this.model ? this.model.play(action) : Promise.resolve();
+  }
+
+  setWalking(on: boolean) {
+    this.model?.setWalking(on);
+  }
+
+  get hasModel() {
+    return !!this.model;
+  }
+
   hitFlash() {
+    this.act('hit');
     this.portrait.setTintFill(0xffffff);
     this.scene.time.delayedCall(80, () => this.portrait.setTint(0xff6060));
     this.scene.time.delayedCall(220, () => this.portrait.clearTint());
@@ -118,8 +152,80 @@ export class UnitView extends Phaser.GameObjects.Container {
 
   destroy(fromScene?: boolean) {
     this.idle?.remove();
+    this.model?.release();
+    this.model = null;
     super.destroy(fromScene);
   }
+}
+
+/** Rounded button; returns a setter for its highlighted state. */
+export function button(scene: Phaser.Scene, parent: Phaser.GameObjects.Container, x: number, y: number, w: number, h: number, label: string, onClick: () => void) {
+  const g = scene.add.graphics();
+  const text = txt(scene, x, y, label, 18, '#ffeec2', 4);
+  const draw = (on: boolean) => {
+    g.clear();
+    g.fillStyle(on ? 0x7a1a10 : 0x2a1a0e, 1).fillRoundedRect(x - w / 2, y - h / 2, w, h, 12);
+    g.lineStyle(3, on ? 0xffcf4a : 0x6a5236, 1).strokeRoundedRect(x - w / 2, y - h / 2, w, h, 12);
+    text.setColor(on ? '#ffeec2' : '#a89878');
+  };
+  const hit = scene.add.rectangle(x, y, w, h, 0, 0.001).setInteractive({ useHandCursor: true });
+  hit.on('pointerdown', onClick);
+  parent.add([g, text, hit]);
+  draw(false);
+  return { draw, text };
+}
+
+export interface SettingsOptions {
+  modelSet: 'kit' | 'ai';
+  aiCount: () => number;
+  aiTotal: number;
+  setModelSet: (set: 'kit' | 'ai') => Promise<void>;
+}
+
+/** Modal settings panel: choose between the rigged CC0 models and the AI-generated ones. */
+export function openSettings(scene: Phaser.Scene, opts: SettingsOptions) {
+  const { width, height } = scene.scale;
+  const layer = scene.add.container(0, 0).setDepth(1000);
+  layer.add(scene.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0).setInteractive());
+  const cx = width / 2;
+  const cy = height / 2;
+  const panel = scene.add.graphics();
+  panel.fillStyle(0x1e130a, 0.97).fillRoundedRect(cx - 220, cy - 170, 440, 340, 18);
+  panel.lineStyle(4, 0xd99a1e, 1).strokeRoundedRect(cx - 220, cy - 170, 440, 340, 18);
+  layer.add(panel);
+  layer.add(txt(scene, cx, cy - 135, '设置', 30, '#ffcf4a', 6));
+  layer.add(txt(scene, cx, cy - 85, '角色模型', 20, '#f3e3c0', 4));
+
+  let current = opts.modelSet;
+  let busy = false;
+  const hint = txt(scene, cx, cy + 50, '', 14, '#a09070', 3);
+  layer.add(hint);
+  const describe = () =>
+    hint.setText(
+      current === 'kit'
+        ? '免费授权角色模型（CC0）\n带骨骼动画'
+        : `根据卡牌立绘用 AI 生成（${opts.aiCount()}/${opts.aiTotal}）\n缺少的单位使用现有模型`,
+    );
+  const pick = async (set: 'kit' | 'ai') => {
+    if (busy || set === current) return;
+    busy = true;
+    hint.setText('加载模型中...');
+    await opts.setModelSet(set).catch((err) => console.warn('model set failed:', err));
+    current = set;
+    busy = false;
+    kit.draw(current === 'kit');
+    ai.draw(current === 'ai');
+    describe();
+  };
+  const kit = button(scene, layer, cx - 105, cy - 25, 190, 60, '现有模型', () => pick('kit'));
+  const ai = button(scene, layer, cx + 105, cy - 25, 190, 60, 'AI 生成', () => pick('ai'));
+  kit.draw(current === 'kit');
+  ai.draw(current === 'ai');
+  describe();
+
+  const done = button(scene, layer, cx, cy + 120, 160, 52, '完成', () => !busy && layer.destroy());
+  done.draw(true);
+  return layer;
 }
 
 export const CARD_W = 100;

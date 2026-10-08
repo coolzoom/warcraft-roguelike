@@ -13,6 +13,26 @@ import {
   waveScale,
 } from '../data';
 import { CardView, UnitView, tweenP, txt, wait } from '../ui';
+import { Background, addBackground } from '../three/battlefield';
+import { addPoints, getDeck, rank, runPoints, talentPoints } from '../meta';
+
+/** Flat stat bonuses from the unit-branch talents. */
+function unitTalentBonus(key: string) {
+  switch (key) {
+    case 'grunt':
+      return { atk: 2 * rank('u_grunt'), hp: 6 * rank('u_grunt') };
+    case 'troll':
+      return { atk: rank('u_troll'), hp: 0 };
+    case 'tauren':
+      return { atk: 0, hp: 8 * rank('u_tauren') };
+    case 'mage':
+      return { atk: rank('u_mage'), hp: 0 };
+    case 'dwarf':
+      return { atk: rank('u_dwarf'), hp: 0 };
+    default:
+      return { atk: 0, hp: 0 };
+  }
+}
 
 interface Unit {
   side: 'ally' | 'enemy';
@@ -67,7 +87,7 @@ const HAND_SIZE = 5;
 const atkOf = (u: Unit) => u.baseAtk + u.bonusAtk;
 
 export class BattleScene extends Phaser.Scene {
-  private bg!: Phaser.GameObjects.TileSprite;
+  private bg!: Background;
   private bgScroll = 0;
 
   private deck: string[] = [];
@@ -86,6 +106,10 @@ export class BattleScene extends Phaser.Scene {
   private baseHp = 60;
   private baseMaxHp = 60;
   private spellPower = 0;
+  private handSize = HAND_SIZE;
+  private firstWave = 1;
+  private bossKills = 0;
+  private echoUsed = false;
   private busy = true;
   private over = false;
 
@@ -103,7 +127,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create() {
-    this.deck = [...STARTING_DECK];
+    this.deck = getDeck();
     this.drawPile = [];
     this.discard = [];
     this.hand = [];
@@ -111,17 +135,18 @@ export class BattleScene extends Phaser.Scene {
     this.allies = new Array(ALLY_SLOTS.length).fill(null);
     this.enemies = new Array(ENEMY_SLOTS.length).fill(null);
     this.wave = Math.max(1, Number(new URLSearchParams(location.search).get('wave')) || 1);
+    this.firstWave = this.wave;
     this.turn = 0;
-    this.maxEnergy = 3;
-    this.energy = 3;
-    this.baseHp = this.baseMaxHp = 80;
-    this.spellPower = 0;
+    this.maxEnergy = 3 + rank('e_well');
+    this.energy = this.maxEnergy;
+    this.baseHp = this.baseMaxHp = 80 + 15 * rank('b_wall');
+    this.spellPower = rank('s_power');
+    this.handSize = HAND_SIZE + rank('e_draw');
+    this.bossKills = 0;
     this.busy = true;
     this.over = false;
 
-    const { width, height } = this.scale;
-    this.bg = this.add.tileSprite(0, 0, width, height, 'bg_loop').setOrigin(0);
-    this.bg.tileScaleX = this.bg.tileScaleY = width / this.textures.get('bg').getSourceImage().width;
+    this.bg = addBackground(this);
     this.bgScroll = 0;
 
     this.buildHud();
@@ -130,7 +155,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   update() {
-    this.bg.tilePositionY = this.bgScroll;
+    this.bg.setScroll(this.bgScroll);
   }
 
   // ---------------------------------------------------------------- HUD
@@ -215,6 +240,7 @@ export class BattleScene extends Phaser.Scene {
     const boss = isBossWave(this.wave);
     const cycle = Math.floor((this.wave - 1) / (BOSS_EVERY * 3));
     const fill = boss ? [BOSS_SLOT, 1, 0, 2] : ENEMY_FILL_ORDER;
+    this.bg.setMood(boss ? 'boss' : 'day');
     list.forEach((key, i) => this.spawnEnemy(key, fill[i], cycle));
 
     if (boss) {
@@ -274,12 +300,14 @@ export class BattleScene extends Phaser.Scene {
     await wait(this, 300);
     await this.discardHand();
     const boss = isBossWave(this.wave);
+    this.liveAllies().forEach((a, i) => this.time.delayedCall(i * 90, () => a.view.act('cheer')));
     await this.banner(boss ? '首领已被击败！' : `第 ${this.wave} 波 胜利！`, '#7dff7a');
 
     for (const a of this.liveAllies()) {
       a.bonusAtk = 0;
       this.healUnit(a, boss ? a.maxHp : Math.round(a.maxHp * 0.25));
     }
+    if (rank('b_repair')) this.healBase(6 * rank('b_repair'));
     this.refreshHud();
     this.showRewards(boss);
   }
@@ -288,10 +316,12 @@ export class BattleScene extends Phaser.Scene {
     this.wave++;
     this.hint.setText('部落大军继续前进...');
     const allies = this.liveAllies();
-    allies.forEach((a, i) =>
-      this.tweens.add({ targets: a.view, y: a.view.y - 10, duration: 180, yoyo: true, repeat: 3, delay: i * 50 }),
-    );
+    allies.forEach((a, i) => {
+      if (a.view.hasModel) a.view.setWalking(true);
+      else this.tweens.add({ targets: a.view, y: a.view.y - 10, duration: 180, yoyo: true, repeat: 3, delay: i * 50 });
+    });
     await tweenP(this, { targets: this, bgScroll: this.bgScroll - 420, duration: 1500, ease: 'Sine.inOut' });
+    allies.forEach((a) => a.view.setWalking(false));
     this.hint.setText('');
     this.startWave();
   }
@@ -301,12 +331,13 @@ export class BattleScene extends Phaser.Scene {
   private async startPlayerTurn() {
     if (this.over) return;
     this.turn++;
-    this.energy = this.maxEnergy;
+    this.energy = this.maxEnergy + (this.turn === 1 ? rank('e_surge') : 0);
+    this.echoUsed = false;
     for (const a of this.liveAllies()) {
       a.shield = 0;
       this.refreshUnit(a);
     }
-    await this.drawCards(HAND_SIZE);
+    await this.drawCards(this.handSize);
     this.busy = false;
     this.hint.setText('点击卡牌查看并打出，打完后点「结束回合」');
     this.refreshHud();
@@ -326,6 +357,7 @@ export class BattleScene extends Phaser.Scene {
         a.stun--;
         this.floatText(a.view.x, a.view.y - 20, '眩晕', '#c0c0ff', 16);
         this.refreshUnit(a);
+        await a.view.act('stun');
         await wait(this, 200);
         continue;
       }
@@ -342,6 +374,7 @@ export class BattleScene extends Phaser.Scene {
         e.stun--;
         this.floatText(e.view.x, e.view.y - 20, '眩晕', '#c0c0ff', 16);
         this.refreshUnit(e);
+        await e.view.act('stun');
         await wait(this, 200);
         continue;
       }
@@ -472,6 +505,11 @@ export class BattleScene extends Phaser.Scene {
 
     if (def.kind === 'unit') await this.playUnit(def.ref);
     else await this.castSpell(def.ref, target);
+    if (def.kind === 'spell' && rank('s_echo') && !this.echoUsed && this.liveEnemies().length > 0) {
+      this.echoUsed = true;
+      this.floatText(270, HUD_Y - 60, '法术回响：抽 1 张', '#c8a0ff', 16);
+      await this.drawCards(1);
+    }
 
     if (this.liveEnemies().length === 0) return this.onWaveCleared();
     this.busy = false;
@@ -505,7 +543,7 @@ export class BattleScene extends Phaser.Scene {
       shield: 0,
       armor: 0,
       stun: 0,
-      level: 1,
+      level: rank('u_elite') ? 2 : 1,
       taunt: !!def.taunt,
       skill: def.skill,
       boss: false,
@@ -530,8 +568,9 @@ export class BattleScene extends Phaser.Scene {
     const def = UNITS[u.key];
     const mul = 1 + 0.35 * (u.level - 1);
     const oldMax = u.maxHp;
-    u.baseAtk = Math.round(def.atk * mul);
-    u.maxHp = Math.round(def.hp * mul);
+    const bonus = unitTalentBonus(u.key);
+    u.baseAtk = Math.round(def.atk * mul) + bonus.atk;
+    u.maxHp = Math.round(def.hp * mul) + bonus.hp;
     u.hp += u.maxHp - oldMax;
   }
 
@@ -661,14 +700,17 @@ export class BattleScene extends Phaser.Scene {
     u.view.setTargetable(false);
     u.view.portrait.disableInteractive();
     if (u.boss) this.cameras.main.shake(500, 0.015);
+    if (u.boss && u.side === 'enemy') this.bossKills++;
     this.burst(u.view.x, u.view.y, u.side === 'enemy' ? 0x8aff8a : 0xff4a4a, 18);
+    const has3d = u.view.hasModel;
+    if (has3d) u.view.act('die');
     this.tweens.add({
       targets: [u.view, u.label].filter(Boolean),
       alpha: 0,
-      scale: 0.3,
-      angle: u.side === 'enemy' ? 30 : -30,
-      duration: 400,
-      delay: 150,
+      scale: has3d ? 1 : 0.3,
+      angle: has3d ? 0 : u.side === 'enemy' ? 30 : -30,
+      duration: has3d ? 300 : 400,
+      delay: has3d ? 650 : 150,
       onComplete: () => {
         u.view.destroy();
         u.label?.destroy();
@@ -704,11 +746,15 @@ export class BattleScene extends Phaser.Scene {
     const tx = x + (to.x - x) * 0.55;
     const ty = y + (to.y - y) * 0.55;
     u.view.setDepth(10);
+    const swing = u.view.act('attack');
     await tweenP(this, { targets: u.view, x: tx, y: ty, duration: 130, ease: 'Quad.in' });
+    await swing;
     this.tweens.add({ targets: u.view, x, y, duration: 180, ease: 'Quad.out', onComplete: () => u.view.setDepth(0) });
   }
 
   private async projectile(from: { x: number; y: number }, to: { x: number; y: number }, color: number, size = 8) {
+    // Units wind up a throw / cast and release the projectile on the impact frame.
+    if (from instanceof UnitView) await from.act('attack');
     const p = this.add.circle(from.x, from.y, size, color).setDepth(30);
     const glow = this.add.circle(from.x, from.y, size * 2, color, 0.35).setDepth(29);
     await tweenP(this, { targets: [p, glow], x: to.x, y: to.y, duration: 260, ease: 'Quad.in' });
@@ -760,19 +806,21 @@ export class BattleScene extends Phaser.Scene {
         if (!t) return;
         await this.lunge(a, t.view);
         this.damage(t, atk);
-        if (a.skill === 'stun' && !t.dead && Math.random() < (t.boss ? 0.15 : 0.35)) {
+        const stunChance = (t.boss ? 0.15 : 0.35) + 0.1 * rank('u_dwarf') * (t.boss ? 0.5 : 1);
+        if (a.skill === 'stun' && !t.dead && Math.random() < stunChance) {
           t.stun = 1;
           this.floatText(t.view.x, t.view.y - 50, '眩晕！', '#c0c0ff', 18);
           this.refreshUnit(t);
         }
         if (a.skill === 'taunt_heal') {
           await wait(this, 150);
-          this.liveAllies().forEach((o) => this.healUnit(o, Math.round(3 * (1 + 0.35 * (a.level - 1)))));
+          this.liveAllies().forEach((o) => this.healUnit(o, Math.round(3 * (1 + 0.35 * (a.level - 1))) + 2 * rank('u_tauren')));
         }
         break;
       }
       case 'double': {
-        for (let i = 0; i < 2; i++) {
+        const throws = rank('u_troll') >= 3 ? 3 : 2;
+        for (let i = 0; i < throws; i++) {
           const t = this.weakestEnemy();
           if (!t) return;
           await this.projectile(a.view, t.view, 0xc0c0c0, 6);
@@ -790,7 +838,7 @@ export class BattleScene extends Phaser.Scene {
         const allies = this.liveAllies();
         const low = allies.reduce((x, y) => (y.hp / y.maxHp < x.hp / x.maxHp ? y : x));
         await this.projectile(a.view, low.view, 0xfff0a0, 7);
-        this.healUnit(low, Math.round(8 * (1 + 0.35 * (a.level - 1))));
+        this.healUnit(low, Math.round(8 * (1 + 0.35 * (a.level - 1))) + 3 * rank('u_elf'));
         const t = this.frontEnemy();
         if (t) {
           await this.projectile(a.view, t.view, 0xe0d0ff, 5);
@@ -808,6 +856,11 @@ export class BattleScene extends Phaser.Scene {
     }
     await this.projectile(e.view, BASE_POS, 0xff4030, 9);
     this.damageBase(atkOf(e) * mult);
+    const spikes = 4 * rank('b_spikes');
+    if (spikes > 0 && !this.over && !e.dead) {
+      this.floatText(e.view.x, e.view.y - 50, '尖刺反伤', '#ffb060', 15);
+      this.damage(e, spikes + e.armor);
+    }
     return 0;
   }
 
@@ -821,6 +874,7 @@ export class BattleScene extends Phaser.Scene {
         const slot = this.freeEnemySlot();
         if (e.turns % 2 === 0 && slot !== -1) {
           this.floatText(e.view.x, e.view.y - 50, '亡者复苏！', '#8aff8a', 18);
+          await e.view.act('cast');
           this.burst(e.view.x, e.view.y, 0x6aff6a);
           this.spawnEnemy('skeleton', slot);
           await wait(this, 450);
@@ -839,6 +893,7 @@ export class BattleScene extends Phaser.Scene {
       case 'boss_dragon': {
         if (e.turns % 3 === 0) {
           this.floatText(e.view.x, e.view.y + 80, '冰霜吐息！', '#9fe3ff', 26);
+          await e.view.act('cast');
           const allies = this.liveAllies();
           await Promise.all(allies.map((a) => this.iceShards(a.view)));
           allies.forEach((a) => this.damage(a, atkOf(e) * 0.7));
@@ -853,6 +908,7 @@ export class BattleScene extends Phaser.Scene {
         const phase = e.turns % 3;
         if (phase === 1) {
           this.floatText(e.view.x, e.view.y + 80, '亡灵大军！', '#8aff8a', 26);
+          await e.view.act('cast');
           for (let i = 0; i < 2; i++) {
             const slot = this.freeEnemySlot();
             if (slot !== -1) this.spawnEnemy('ghoul', slot);
@@ -860,6 +916,7 @@ export class BattleScene extends Phaser.Scene {
           await wait(this, 500);
         } else if (phase === 2) {
           this.floatText(e.view.x, e.view.y + 80, '冰霜新星！', '#9fe3ff', 26);
+          await e.view.act('cast');
           this.cameras.main.flash(200, 120, 200, 255);
           const allies = this.liveAllies();
           allies.forEach((a) => this.damage(a, atkOf(e) * 0.5));
@@ -878,6 +935,7 @@ export class BattleScene extends Phaser.Scene {
       case 'boss_demon': {
         if (e.turns % 3 === 0) {
           this.floatText(e.view.x, e.view.y + 80, '邪能火雨！', '#8aff4a', 26);
+          await e.view.act('cast');
           const allies = this.liveAllies();
           allies.forEach((a) => {
             this.burst(a.view.x, a.view.y, 0x8aff4a);
@@ -1036,6 +1094,8 @@ export class BattleScene extends Phaser.Scene {
     const reached = this.wave;
     const best = Math.max(reached, Number(localStorage.getItem('horde_best') || 0));
     localStorage.setItem('horde_best', String(best));
+    const earned = runPoints(reached - this.firstWave, this.bossKills);
+    addPoints(earned);
 
     const { width, height } = this.scale;
     this.time.delayedCall(600, () => {
@@ -1044,11 +1104,14 @@ export class BattleScene extends Phaser.Scene {
       layer.add(txt(this, width / 2, 330, '大本营已陷落', 44, '#ff5a4a', 7));
       layer.add(txt(this, width / 2, 400, `本次到达第 ${reached} 波`, 24, '#ffeec2', 5));
       layer.add(txt(this, width / 2, 440, `最远纪录：第 ${best} 波`, 18, '#9fe3ff', 4));
-      const again = txt(this, width / 2, 540, '再次远征', 30, '#ffcf4a', 6).setInteractive({ useHandCursor: true });
+      layer.add(txt(this, width / 2, 482, `获得天赋点 +${earned}（可用 ${talentPoints()}）`, 18, '#ffd27a', 4));
+      const again = txt(this, width / 2, 560, '再次远征', 30, '#ffcf4a', 6).setInteractive({ useHandCursor: true });
       again.on('pointerdown', () => this.scene.restart());
-      const menu = txt(this, width / 2, 610, '返回主菜单', 20, '#c0b090', 4).setInteractive({ useHandCursor: true });
+      const talents = txt(this, width / 2, 625, '⭐ 学习天赋', 22, '#ffeec2', 4).setInteractive({ useHandCursor: true });
+      talents.on('pointerdown', () => this.scene.start('talents'));
+      const menu = txt(this, width / 2, 680, '返回主菜单', 20, '#c0b090', 4).setInteractive({ useHandCursor: true });
       menu.on('pointerdown', () => this.scene.start('menu'));
-      layer.add([again, menu]);
+      layer.add([again, talents, menu]);
     });
   }
 }
