@@ -46,14 +46,13 @@ export class UnitView extends Phaser.GameObjects.Container {
   private shieldText: Phaser.GameObjects.Text;
   private starText: Phaser.GameObjects.Text;
   private stunText: Phaser.GameObjects.Text;
-  private burnMark: Phaser.GameObjects.Text;
   private targetRing: Phaser.GameObjects.Arc;
   readonly portrait: Phaser.GameObjects.Image;
   private barW: number;
   private idle?: Phaser.Tweens.Tween;
   private model: ModelHandle | null = null;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, art: string, ally: boolean, boss: boolean, model?: string) {
+  constructor(scene: Phaser.Scene, x: number, y: number, art: string, ally: boolean, boss: boolean) {
     super(scene, x, y);
     this.radius = boss ? 62 : 36;
     const r = this.radius;
@@ -63,17 +62,15 @@ export class UnitView extends Phaser.GameObjects.Container {
     this.targetRing = scene.add.circle(0, r * 0.85, r + 9).setStrokeStyle(4, 0xffe066).setVisible(false);
     this.targetRing.setScale(1, 0.45);
 
-    this.model = scene.textures.exists(ATLAS_KEY) ? getStage().create(art, boss, model) : null;
+    this.model = scene.textures.exists(ATLAS_KEY) ? getStage().create(art, boss) : null;
     if (this.model) {
       // 3D model rendered into the shared atlas; feet planted on the shadow.
       const m = this.model;
       const size = boss ? r * 4.1 : r * 3.4;
       this.ring = scene.add.circle(0, r * 0.85, r * 0.95).setStrokeStyle(3, boss ? 0xb44dff : teamColor, 0.9).setScale(1, 0.4);
       this.portrait = scene.add.image(0, r * 0.85, ATLAS_KEY, m.frame).setOrigin(0.5, m.footY).setDisplaySize(size, size);
-      // Our units stand at the bottom and turn to face the enemy row (up the screen, -Z);
-      // enemies face the heroes (toward the camera / down the screen).
-      const FACE_ENEMY = Math.PI;
-      m.setFacing(ally ? FACE_ENEMY : 0);
+      // Enemies face the heroes (toward the camera); heroes stand three-quarters so their faces read.
+      m.setFacing(ally ? Math.sign(scene.scale.width / 2 - x) * 0.45 : 0);
       this.portrait.setInteractive({
         hitArea: new Phaser.Geom.Rectangle(m.size * 0.22, m.size * 0.15, m.size * 0.56, m.size * (m.footY - 0.1)),
         hitAreaCallback: Phaser.Geom.Rectangle.Contains,
@@ -84,7 +81,6 @@ export class UnitView extends Phaser.GameObjects.Container {
     }
 
     this.barW = boss ? 130 : 74;
-    this.burnMark = scene.add.text(0, -this.radius * 2.4, '🔥', { fontSize: '20px' }).setOrigin(0.5).setVisible(false);
     const barY = this.model ? r * 0.85 - (boss ? r * 4.1 : r * 3.4) * 0.66 - 4 : -r - 16;
     const barBg = scene.add.rectangle(0, barY, this.barW + 4, 12, 0x140c06).setStrokeStyle(1, 0x000000);
     this.hpFill = scene.add
@@ -99,7 +95,7 @@ export class UnitView extends Phaser.GameObjects.Container {
     this.starText = txt(scene, 0, r + 10, '', 12, '#ffd700', 3);
     this.stunText = txt(scene, -r * 0.8, -r * 0.6, '💫', 18).setVisible(false);
 
-    this.add([shadow, this.targetRing, this.ring, this.portrait, barBg, this.hpFill, badge, this.hpText, this.shieldText, atkBadge, atkIcon, this.atkText, this.starText, this.stunText, this.burnMark]);
+    this.add([shadow, this.targetRing, this.ring, this.portrait, barBg, this.hpFill, badge, this.hpText, this.shieldText, atkBadge, atkIcon, this.atkText, this.starText, this.stunText]);
     scene.add.existing(this);
 
     if (!this.model) this.idle = scene.tweens.add({
@@ -139,10 +135,6 @@ export class UnitView extends Phaser.GameObjects.Container {
 
   setWalking(on: boolean) {
     this.model?.setWalking(on);
-  }
-
-  setBurn(on: boolean) {
-    this.burnMark.setVisible(on);
   }
 
   get hasModel() {

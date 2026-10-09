@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import catalog from '../presentation.json';
 import { GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { add, cyl, horn, toon, toonMat, torus } from './parts';
@@ -67,7 +66,7 @@ function frostCrown(): THREE.Object3D {
   return g;
 }
 
-export const MODEL_DEFS: Record<keyof typeof catalog.models, ModelDef> = {
+export const MODEL_DEFS: Record<string, ModelDef> = {
   p_orc: {
     file: 'Barbarian.glb',
     skin: 0x6cab3c,
@@ -421,7 +420,7 @@ async function buildAiProto(art: string, loader: GLTFLoader, yawDeg = 180): Prom
   scene.rotation.y = THREE.MathUtils.degToRad(yawDeg);
   const { root, width } = normalize(scene, [1, 1]);
   addOutlines(root);
-  return { root, clips: {}, height: HEIGHT, width, float: !!MODEL_DEFS[art as keyof typeof MODEL_DEFS]?.float, procedural: true };
+  return { root, clips: {}, height: HEIGHT, width, float: !!MODEL_DEFS[art]?.float, procedural: true };
 }
 
 /** Area-weighted normals shared by every vertex at the same position, so UV seams don't split the outline hull. */
@@ -505,19 +504,17 @@ export function loadModels(): Promise<void> {
   return Promise.all(sets.map((s) => (loading[s] ??= loadSet(s)))).then(() => undefined);
 }
 
-function proto(art: string, explicitModel?: string) {
-  // Explicit card model always wins; the global set only affects legacy art-only data.
-  if (explicitModel && Object.hasOwn(MODEL_DEFS, explicitModel)) return protos.kit.get(explicitModel) ?? protos.kit.get(art);
+function proto(art: string) {
   return (active === 'ai' && protos.ai.get(art)) || protos.kit.get(art);
 }
 
-export function hasModel(art: string, explicitModel?: string) {
-  return !!proto(art, explicitModel);
+export function hasModel(art: string) {
+  return !!proto(art);
 }
 
 /** A fresh instance sharing geometry/materials with the prototype; nothing to dispose. */
-export function instantiate(art: string, explicitModel?: string) {
-  const p = proto(art, explicitModel);
+export function instantiate(art: string) {
+  const p = proto(art);
   if (!p) return null;
   return { ...p, root: cloneSkinned(p.root) as THREE.Group };
 }

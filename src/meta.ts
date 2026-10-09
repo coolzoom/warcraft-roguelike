@@ -122,7 +122,7 @@ export function deckError(deck: string[]): string | null {
     const def = CARDS[id];
     if (!def) return `未知卡牌 ${id}`;
     counts.set(id, (counts.get(id) ?? 0) + 1);
-    if (counts.get(id)! > (COPY_LIMIT[def.rarity] ?? 3)) return '超过同名卡牌数量上限';
+    if (counts.get(id)! > COPY_LIMIT[def.rarity]) return '超过同名卡牌数量上限';
   }
   if (!deck.some((id) => CARDS[id].kind === 'unit')) return '至少需要 1 张英雄牌';
   return null;

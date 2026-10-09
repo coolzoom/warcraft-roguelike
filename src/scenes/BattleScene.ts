@@ -4,14 +4,12 @@ import {
   CARDS,
   ENEMIES,
   EnemyAI,
-  EnemyAIParams,
   SPELLS,
+  STARTING_DECK,
   UNITS,
-  UnitAction,
   UnitSkill,
   buildWave,
   isBossWave,
-  unitSkill,
   waveScale,
 } from '../data';
 import { CardView, UnitView, tweenP, txt, wait } from '../ui';
@@ -47,12 +45,10 @@ interface Unit {
   shield: number;
   armor: number;
   stun: number;
-  burn?: { dmg: number; turns: number };
   level: number;
   taunt: boolean;
   skill?: UnitSkill;
   ai?: EnemyAI;
-  aiParams?: EnemyAIParams;
   boss: boolean;
   turns: number;
   slot: number;
@@ -259,11 +255,9 @@ export class BattleScene extends Phaser.Scene {
 
   private spawnEnemy(key: string, slot: number, cycle = 0) {
     const def = ENEMIES[key];
-    if (!def) return null;
-    if (slot < 0 || slot >= ENEMY_SLOTS.length || this.enemies[slot]) return null;
     const scale = waveScale(this.wave) * (1 + cycle * 0.5);
     const pos = ENEMY_SLOTS[slot];
-    const view = new UnitView(this, pos.x, pos.y - 260, def.art, false, !!def.boss, def.model);
+    const view = new UnitView(this, pos.x, pos.y - 260, def.art, false, !!def.boss);
     const u: Unit = {
       side: 'enemy',
       key,
@@ -278,7 +272,6 @@ export class BattleScene extends Phaser.Scene {
       level: 0,
       taunt: false,
       ai: def.ai,
-      aiParams: def.aiParams,
       boss: !!def.boss,
       turns: 0,
       slot,
@@ -371,9 +364,6 @@ export class BattleScene extends Phaser.Scene {
       await this.allyAct(a);
       await wait(this, 120);
     }
-    if (this.liveEnemies().length === 0) return this.onWaveCleared();
-
-    await this.tickBurn();
     if (this.liveEnemies().length === 0) return this.onWaveCleared();
 
     await this.banner('敌方回合', '#ff8a7a', 30);
@@ -541,7 +531,7 @@ export class BattleScene extends Phaser.Scene {
     if (slot === -1) return;
     const def = UNITS[key];
     const pos = ALLY_SLOTS[slot];
-    const view = new UnitView(this, pos.x, pos.y + 40, def.art, true, false, def.model);
+    const view = new UnitView(this, pos.x, pos.y + 40, def.art, true, false);
     const u: Unit = {
       side: 'ally',
       key,
@@ -584,95 +574,71 @@ export class BattleScene extends Phaser.Scene {
     u.hp += u.maxHp - oldMax;
   }
 
-  /** Effects run in list order, so the editor can compose new spells without touching code. */
   private async castSpell(id: string, target: Unit | null) {
-    const spell = SPELLS[id];
-    if (!spell) return;
     const sp = this.spellPower;
     const origin = { x: 270, y: 780 };
-    for (const effect of spell.effects ?? []) {
-      switch (effect.kind) {
-        case 'damage_single': {
-          if (!target) break;
-          await this.playSkillVisual(effect.visual ?? 'fire', origin, target.view, 0xff6a1a, 14);
-          if (effect.visual === undefined) this.burst(target.view.x, target.view.y, 0xff8a2a);
-          this.damage(target, effect.amount + sp);
-          if (effect.stun && !target.dead) {
-            target.stun = effect.stun;
-            this.floatText(target.view.x, target.view.y - 50, '冰冻！', '#9fe3ff', 18);
-            this.refreshUnit(target);
-          }
-          break;
+    switch (id) {
+      case 'fireball': {
+        if (!target) return;
+        await this.projectile(origin, target.view, 0xff6a1a, 14);
+        this.burst(target.view.x, target.view.y, 0xff8a2a);
+        this.damage(target, 10 + sp);
+        break;
+      }
+      case 'execute': {
+        if (!target) return;
+        await this.projectile(origin, target.view, 0xd02020, 10);
+        const low = target.hp <= target.maxHp / 2;
+        if (low) this.floatText(target.view.x, target.view.y - 50, '斩杀！', '#ff4040', 26);
+        this.damage(target, (low ? 20 : 6) + sp);
+        break;
+      }
+      case 'blizzard': {
+        const targets = this.liveEnemies();
+        await Promise.all(targets.map((e) => this.iceShards(e.view)));
+        targets.forEach((e) => this.damage(e, 5 + sp));
+        break;
+      }
+      case 'chain': {
+        let from: { x: number; y: number } = origin;
+        for (let i = 0; i < 3; i++) {
+          const pool = this.liveEnemies();
+          if (pool.length === 0) break;
+          const t = Phaser.Utils.Array.GetRandom(pool);
+          this.lightning(from, t.view);
+          this.damage(t, 7 + sp);
+          from = { x: t.view.x, y: t.view.y };
+          await wait(this, 180);
         }
-        case 'execute': {
-          if (!target) break;
-          await this.playSkillVisual(effect.visual ?? 'projectile', origin, target.view, 0xd02020, 10);
-          const low = target.hp <= target.maxHp * (effect.threshold ?? 0.5);
-          if (low) this.floatText(target.view.x, target.view.y - 50, '斩杀！', '#ff4040', 26);
-          this.damage(target, (low ? effect.bonus : effect.amount) + sp);
-          break;
-        }
-        case 'damage_all': {
-          const targets = this.liveEnemies();
-          await Promise.all(targets.map((e) => this.playSkillVisual(effect.visual ?? 'ice', origin, e.view, spell.color)));
-          targets.forEach((e) => this.damage(e, effect.amount + sp));
-          break;
-        }
-        case 'chain': {
-          let from: { x: number; y: number } = origin;
-          for (let i = 0; i < effect.hits; i++) {
-            const pool = this.liveEnemies();
-            if (pool.length === 0) break;
-            const t = Phaser.Utils.Array.GetRandom(pool) as Unit;
-            await this.playSkillVisual(effect.visual ?? 'lightning', from, t.view, spell.color);
-            this.damage(t, effect.amount + sp);
-            from = { x: t.view.x, y: t.view.y };
-            await wait(this, 180);
-          }
-          break;
-        }
-        case 'heal_all': {
-          await Promise.all([...this.liveAllies().map(a => a.view), ...(effect.base ? [BASE_POS] : [])].map(to => this.playSkillVisual(effect.visual ?? 'heal', origin, to, spell.color)));
-          this.liveAllies().forEach((a) => {
-            this.healUnit(a, effect.amount + sp);
-          });
-          if (effect.base) this.healBase(effect.base + sp);
-          await wait(this, 300);
-          break;
-        }
-        case 'buff_all': {
-          if (effect.visual === undefined) this.cameras.main.flash(200, 160, 20, 20);
-          else await Promise.all(this.liveAllies().map(a => this.playSkillVisual(effect.visual!, origin, a.view, spell.color)));
-          this.liveAllies().forEach((a) => {
-            a.bonusAtk += effect.atk;
-            this.floatText(a.view.x, a.view.y - 30, `攻击 +${effect.atk}`, '#ff7060', 18);
-            if (effect.shield) a.shield += effect.shield + sp;
-            this.refreshUnit(a);
-          });
-          await wait(this, 300);
-          break;
-        }
-        case 'shield_all': {
-          await Promise.all(this.liveAllies().map(a => this.playSkillVisual(effect.visual ?? 'shield', origin, a.view, spell.color)));
-          this.liveAllies().forEach((a) => {
-            a.shield += effect.amount + sp;
-            this.refreshUnit(a);
-          });
-          await wait(this, 300);
-          break;
-        }
-        case 'draw': {
-          if (effect.visual !== undefined) await this.playSkillVisual(effect.visual, origin, origin, spell.color);
-          this.floatText(270, HUD_Y - 60, `奥术智慧：抽 ${effect.count} 张`, '#c8a0ff', 16);
-          await this.drawCards(effect.count);
-          break;
-        }
-        case 'burn': {
-          const targets = this.liveEnemies();
-          await Promise.all(targets.map((e) => this.playSkillVisual(effect.visual ?? 'fire', origin, e.view, spell.color)));
-          targets.forEach((e) => this.applyBurn(e, effect.amount + sp, effect.turns ?? 3));
-          break;
-        }
+        break;
+      }
+      case 'heal': {
+        this.liveAllies().forEach((a) => {
+          this.burst(a.view.x, a.view.y, 0x6aff6a);
+          this.healUnit(a, 8 + sp);
+        });
+        this.healBase(5 + sp);
+        await wait(this, 300);
+        break;
+      }
+      case 'bloodlust': {
+        this.cameras.main.flash(200, 160, 20, 20);
+        this.liveAllies().forEach((a) => {
+          a.bonusAtk += 3;
+          this.floatText(a.view.x, a.view.y - 30, '攻击 +3', '#ff7060', 18);
+          this.refreshUnit(a);
+        });
+        await wait(this, 300);
+        break;
+      }
+      case 'shieldwall': {
+        this.liveAllies().forEach((a) => {
+          a.shield += 8 + sp;
+          this.burst(a.view.x, a.view.y, 0x9fe3ff);
+          this.refreshUnit(a);
+        });
+        await wait(this, 300);
+        break;
       }
     }
   }
@@ -727,43 +693,6 @@ export class BattleScene extends Phaser.Scene {
     return dmg;
   }
 
-  /** Apply (or refresh) a burn: lasts `turns` rounds; if already burning the per-turn damage doubles. */
-  private applyBurn(u: Unit, dmg: number, turns: number) {
-    if (u.dead) return;
-    if (u.burn) {
-      u.burn.dmg = dmg * 2;
-      u.burn.turns = Math.max(u.burn.turns, turns);
-      this.floatText(u.view.x, u.view.y - 50, '燃烧加剧！', '#ff7a2a', 18);
-    } else {
-      u.burn = { dmg, turns };
-    }
-    u.view.setBurn(true);
-    this.refreshUnit(u);
-  }
-
-  /** Tick burning units once per round (start of the enemy phase), then decay the status. */
-  private async tickBurn() {
-    const burning = [...this.liveEnemies(), ...this.liveAllies()].filter((u) => !!u.burn && !u.dead);
-    for (const u of burning) {
-      if (!u.burn) continue;
-      this.floatText(u.view.x, u.view.y - 50, `灼烧 ${u.burn.dmg}`, '#ff7a2a', 18);
-      this.burst(u.view.x, u.view.y, 0xff6a1a, 10);
-      this.damage(u, u.burn.dmg);
-      if (u.dead) {
-        u.burn = undefined;
-        u.view.setBurn(false);
-        continue;
-      }
-      u.burn.turns--;
-      if (u.burn.turns <= 0) {
-        u.burn = undefined;
-        u.view.setBurn(false);
-      }
-      this.refreshUnit(u);
-      await wait(this, 180);
-    }
-  }
-
   private kill(u: Unit) {
     u.dead = true;
     if (u.side === 'ally') this.allies[u.slot] = null;
@@ -812,28 +741,20 @@ export class BattleScene extends Phaser.Scene {
     if (this.baseHp <= 0 && !this.over) this.gameOver();
   }
 
-  private async lunge(u: Unit, to: { x: number; y: number }, animation: 'attack' | 'cast' | 'cheer' = 'attack') {
+  private async lunge(u: Unit, to: { x: number; y: number }) {
     const { x, y } = u.view;
     const tx = x + (to.x - x) * 0.55;
     const ty = y + (to.y - y) * 0.55;
     u.view.setDepth(10);
-    const swing = u.view.act(animation);
+    const swing = u.view.act('attack');
     await tweenP(this, { targets: u.view, x: tx, y: ty, duration: 130, ease: 'Quad.in' });
     await swing;
     this.tweens.add({ targets: u.view, x, y, duration: 180, ease: 'Quad.out', onComplete: () => u.view.setDepth(0) });
   }
 
-  private async playSkillVisual(visual: string, from: { x: number; y: number }, to: { x: number; y: number }, color: number, size = 8) {
-    if (visual === 'none') return;
-    if (visual === 'ice') await this.iceShards(to);
-    else if (visual === 'lightning') { this.lightning(from, to); await wait(this, 260); }
-    else if (visual === 'heal' || visual === 'shield' || visual === 'burst') { this.burst(to.x, to.y, visual === 'heal' ? 0x6aff6a : visual === 'shield' ? 0x9fe3ff : color, 14); await wait(this, 280); }
-    else await this.projectile(from, to, visual === 'fire' ? 0xff6a1a : color, visual === 'fire' ? 14 : size, visual === 'fire' ? 'cast' : 'attack');
-  }
-
-  private async projectile(from: { x: number; y: number }, to: { x: number; y: number }, color: number, size = 8, animation: 'attack' | 'cast' | 'cheer' = 'attack') {
+  private async projectile(from: { x: number; y: number }, to: { x: number; y: number }, color: number, size = 8) {
     // Units wind up a throw / cast and release the projectile on the impact frame.
-    if (from instanceof UnitView) await from.act(animation);
+    if (from instanceof UnitView) await from.act('attack');
     const p = this.add.circle(from.x, from.y, size, color).setDepth(30);
     const glow = this.add.circle(from.x, from.y, size * 2, color, 0.35).setDepth(29);
     await tweenP(this, { targets: [p, glow], x: to.x, y: to.y, duration: 260, ease: 'Quad.in' });
@@ -875,86 +796,55 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: g, alpha: 0, duration: 300, onComplete: () => g.destroy() });
   }
 
-  /** Healing / shielding scales with stars unless an action opts out via `flat`. */
-  private skillAmount(a: Unit, amount: number, flat?: boolean) {
-    const star = flat ? 1 : 1 + 0.35 * (a.level - 1);
-    const talent = a.key === 'elf' ? 3 * rank('u_elf') : a.key === 'tauren' ? 2 * rank('u_tauren') : 0;
-    return Math.round(amount * star) + talent;
-  }
-
-  /** Runs a unit's skill as an ordered action list, so new skills need no code. */
   private async allyAct(a: Unit) {
     const atk = atkOf(a);
-    const skill = unitSkill(a.skill);
-    const actions: UnitAction[] = skill?.actions?.length ? skill.actions : [{ kind: 'attack_front' }];
-    const present = async (action: UnitAction, targets: Unit[], visual: string) => {
-      const animation = action.animation ?? (action.kind.startsWith('attack') ? 'attack' : 'cast');
-      if (animation !== 'none') await a.view.act(animation);
-      const from = { x: a.view.x, y: a.view.y };
-      await Promise.all(targets.map(t => this.playSkillVisual(action.visual ?? visual, from, t.view, 0x7ab8ff)));
-    };
-    for (const action of actions) {
-      if (this.liveEnemies().length === 0 && action.kind.startsWith('attack')) return;
-      switch (action.kind) {
-        case 'attack_front': {
-          const t = this.frontEnemy();
+    switch (a.skill) {
+      case 'front':
+      case 'taunt_heal':
+      case 'stun': {
+        const t = this.frontEnemy();
+        if (!t) return;
+        await this.lunge(a, t.view);
+        this.damage(t, atk);
+        const stunChance = (t.boss ? 0.15 : 0.35) + 0.1 * rank('u_dwarf') * (t.boss ? 0.5 : 1);
+        if (a.skill === 'stun' && !t.dead && Math.random() < stunChance) {
+          t.stun = 1;
+          this.floatText(t.view.x, t.view.y - 50, '眩晕！', '#c0c0ff', 18);
+          this.refreshUnit(t);
+        }
+        if (a.skill === 'taunt_heal') {
+          await wait(this, 150);
+          this.liveAllies().forEach((o) => this.healUnit(o, Math.round(3 * (1 + 0.35 * (a.level - 1))) + 2 * rank('u_tauren')));
+        }
+        break;
+      }
+      case 'double': {
+        const throws = rank('u_troll') >= 3 ? 3 : 2;
+        for (let i = 0; i < throws; i++) {
+          const t = this.weakestEnemy();
           if (!t) return;
-          if (action.animation === undefined && action.visual === undefined) await this.lunge(a, t.view);
-          else await present(action, [t], 'none');
-          const bonus = action.bonusVsLowHp && t.hp <= t.maxHp / 2 ? action.bonusVsLowHp : 0;
-          const dealt = this.damage(t, atk * (action.ratio ?? 1) + bonus);
-          if (action.lifesteal && dealt > 0) this.healUnit(a, Math.round(dealt * action.lifesteal));
-          if (action.stunChance && !t.dead) {
-            const chance = action.stunChance + 0.1 * rank('u_dwarf') * (t.boss ? 0.5 : 1);
-            if (Math.random() < chance) {
-              t.stun = action.stunTurns ?? 1;
-              this.floatText(t.view.x, t.view.y - 50, '眩晕！', '#c0c0ff', 18);
-              this.refreshUnit(t);
-            }
-          }
-          break;
+          await this.projectile(a.view, t.view, 0xc0c0c0, 6);
+          this.damage(t, atk);
         }
-        case 'attack_weakest': {
-          const talentThrows = a.key === 'troll' && rank('u_troll') >= 3 ? 3 : 0;
-          const times = Math.max(action.times ?? 1, talentThrows);
-          for (let i = 0; i < times; i++) {
-            const t = this.weakestEnemy();
-            if (!t) return;
-            await present(action, [t], 'projectile');
-            const bonus = action.bonusVsLowHp && t.hp <= t.maxHp / 2 ? action.bonusVsLowHp : 0;
-            this.damage(t, atk * (action.ratio ?? 1) + bonus);
-          }
-          break;
+        break;
+      }
+      case 'aoe': {
+        const targets = this.liveEnemies();
+        await Promise.all(targets.map((t) => this.projectile(a.view, t.view, 0x7ab8ff, 7)));
+        targets.forEach((t) => this.damage(t, atk));
+        break;
+      }
+      case 'heal': {
+        const allies = this.liveAllies();
+        const low = allies.reduce((x, y) => (y.hp / y.maxHp < x.hp / x.maxHp ? y : x));
+        await this.projectile(a.view, low.view, 0xfff0a0, 7);
+        this.healUnit(low, Math.round(8 * (1 + 0.35 * (a.level - 1))) + 3 * rank('u_elf'));
+        const t = this.frontEnemy();
+        if (t) {
+          await this.projectile(a.view, t.view, 0xe0d0ff, 5);
+          this.damage(t, atk);
         }
-        case 'attack_all': {
-          const targets = this.liveEnemies().slice(0, action.maxTargets ?? 99);
-          await present(action, targets, 'projectile');
-          targets.forEach((t, i) => this.damage(t, atk * (action.ratio ?? 1) * Math.pow(1 - (action.decay ?? 0), i)));
-          break;
-        }
-        case 'heal_lowest': {
-          const allies = this.liveAllies();
-          if (allies.length === 0) break;
-          const low = allies.reduce((x, y) => (y.hp / y.maxHp < x.hp / x.maxHp ? y : x));
-          await present(action, [low], 'heal');
-          this.healUnit(low, this.skillAmount(a, action.amount, action.flat));
-          break;
-        }
-        case 'heal_all': {
-          const targets = this.liveAllies();
-          await present(action, targets, 'heal');
-          targets.forEach((o) => this.healUnit(o, this.skillAmount(a, action.amount, action.flat)));
-          break;
-        }
-        case 'shield_all': {
-          const targets = this.liveAllies();
-          await present(action, targets, 'shield');
-          targets.forEach((o) => {
-            o.shield += this.skillAmount(a, action.amount, action.flat);
-            this.refreshUnit(o);
-          });
-          break;
-        }
+        break;
       }
     }
   }
@@ -978,20 +868,15 @@ export class BattleScene extends Phaser.Scene {
     return ENEMY_FILL_ORDER.find((s) => !this.enemies[s]) ?? -1;
   }
 
-  /** Numbers come from EnemyDef.aiParams, so the editor can retune encounters. */
   private async enemyAct(e: Unit) {
-    const p = e.aiParams ?? {};
     switch (e.ai) {
       case 'summoner': {
-        const key = p.summonKey ?? 'skeleton';
-        if (e.turns % 2 === 0 && this.freeEnemySlot() !== -1) {
+        const slot = this.freeEnemySlot();
+        if (e.turns % 2 === 0 && slot !== -1) {
           this.floatText(e.view.x, e.view.y - 50, '亡者复苏！', '#8aff8a', 18);
           await e.view.act('cast');
           this.burst(e.view.x, e.view.y, 0x6aff6a);
-          for (let i = 0; i < Math.max(1, p.summonCount ?? 1); i++) {
-            const slot = this.freeEnemySlot();
-            if (slot !== -1) this.spawnEnemy(key, slot);
-          }
+          this.spawnEnemy('skeleton', slot);
           await wait(this, 450);
         } else {
           await this.enemyHit(e, this.pickAllyTarget());
@@ -1002,7 +887,7 @@ export class BattleScene extends Phaser.Scene {
         const t1 = this.pickAllyTarget();
         await this.enemyHit(e, t1);
         const t2 = t1 ? this.pickAllyTarget([t1]) : null;
-        if (t2) this.damage(t2, atkOf(e) * (p.cleaveRatio ?? 0.6));
+        if (t2) this.damage(t2, atkOf(e) * 0.6);
         break;
       }
       case 'boss_dragon': {
@@ -1011,9 +896,9 @@ export class BattleScene extends Phaser.Scene {
           await e.view.act('cast');
           const allies = this.liveAllies();
           await Promise.all(allies.map((a) => this.iceShards(a.view)));
-          allies.forEach((a) => this.damage(a, atkOf(e) * (p.aoeRatio ?? 0.7)));
+          allies.forEach((a) => this.damage(a, atkOf(e) * 0.7));
           await this.projectile(e.view, BASE_POS, 0x9fe3ff, 14);
-          this.damageBase(p.aoeBaseDamage ?? 5);
+          this.damageBase(5);
         } else {
           await this.enemyHit(e, this.pickAllyTarget());
         }
@@ -1024,9 +909,9 @@ export class BattleScene extends Phaser.Scene {
         if (phase === 1) {
           this.floatText(e.view.x, e.view.y + 80, '亡灵大军！', '#8aff8a', 26);
           await e.view.act('cast');
-          for (let i = 0; i < Math.max(1, p.summonCount ?? 2); i++) {
+          for (let i = 0; i < 2; i++) {
             const slot = this.freeEnemySlot();
-            if (slot !== -1) this.spawnEnemy(p.summonKey ?? 'ghoul', slot);
+            if (slot !== -1) this.spawnEnemy('ghoul', slot);
           }
           await wait(this, 500);
         } else if (phase === 2) {
@@ -1034,10 +919,10 @@ export class BattleScene extends Phaser.Scene {
           await e.view.act('cast');
           this.cameras.main.flash(200, 120, 200, 255);
           const allies = this.liveAllies();
-          allies.forEach((a) => this.damage(a, atkOf(e) * (p.aoeRatio ?? 0.5)));
+          allies.forEach((a) => this.damage(a, atkOf(e) * 0.5));
           const frozen = this.pickAllyTarget();
           if (frozen) {
-            frozen.stun = p.stunTurns ?? 1;
+            frozen.stun = 1;
             this.refreshUnit(frozen);
           }
           if (allies.length === 0) await this.enemyHit(e, null, 0.6);
@@ -1054,15 +939,15 @@ export class BattleScene extends Phaser.Scene {
           const allies = this.liveAllies();
           allies.forEach((a) => {
             this.burst(a.view.x, a.view.y, 0x8aff4a);
-            this.damage(a, atkOf(e) * (p.aoeRatio ?? 0.5));
+            this.damage(a, atkOf(e) * 0.5);
           });
           await this.projectile(e.view, BASE_POS, 0x8aff4a, 14);
-          this.damageBase(p.aoeBaseDamage ?? 8);
+          this.damageBase(8);
         } else {
           const allies = this.liveAllies();
           const strongest = allies.length ? allies.reduce((x, y) => (atkOf(y) > atkOf(x) ? y : x)) : null;
           const dealt = await this.enemyHit(e, strongest, 1.4);
-          if (p.lifesteal && dealt > 0) this.healUnit(e, Math.round(dealt * p.lifesteal));
+          if (dealt > 0) this.healUnit(e, dealt);
         }
         break;
       }
