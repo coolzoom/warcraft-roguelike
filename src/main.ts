@@ -1,11 +1,19 @@
 import Phaser from 'phaser';
-import { BootScene } from './scenes/BootScene';
-import { MenuScene } from './scenes/MenuScene';
-import { BattleScene } from './scenes/BattleScene';
-import { TalentScene } from './scenes/TalentScene';
-import { DeckScene } from './scenes/DeckScene';
 import { getStage } from './three/stage';
 import { getBattlefield } from './three/battlefield';
+import { loadCardData } from './customCards';
+
+// Custom cards live in public/card-data.json and must be applied before any scene module
+// loads: meta.ts validates the saved deck against CARDS the moment it is imported.
+await loadCardData();
+
+const [{ BootScene }, { MenuScene }, { BattleScene }, { TalentScene }, { DeckScene }] = await Promise.all([
+  import('./scenes/BootScene'),
+  import('./scenes/MenuScene'),
+  import('./scenes/BattleScene'),
+  import('./scenes/TalentScene'),
+  import('./scenes/DeckScene'),
+]);
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,

@@ -93,7 +93,7 @@ export class Animator {
       c.resolve();
     }
     // blend back into the base loop just before the one-shot ends (death holds its last frame)
-    if (c.action !== 'die' && c.t >= c.end - 0.12) {
+    if (c.action !== 'die' && c.resolved && c.t >= c.end - 0.12) {
       this.cur = null;
       if (this.base) this.fadeTo(this.base, c.clip, 0.15);
     }

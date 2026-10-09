@@ -37,8 +37,8 @@ interface Slot {
 }
 
 /** Model instance with its own lights and a camera framing it like the battlefield view. */
-export function buildModelScene(art: string) {
-  const model = instantiate(art);
+export function buildModelScene(art: string, explicitModel?: string) {
+  const model = instantiate(art, explicitModel);
   if (!model) return null;
   const scene = new THREE.Scene();
   scene.add(new THREE.HemisphereLight(0xfff6e8, 0x5a4630, 2.0));
@@ -114,8 +114,8 @@ class Stage {
     for (let dy = 0; dy < s.span; dy++) for (let dx = 0; dx < s.span; dx++) this.used[(s.row + dy) * COLS + s.col + dx] = false;
   }
 
-  create(art: string, big: boolean): ModelHandle | null {
-    const built = buildModelScene(art);
+  create(art: string, big: boolean, model?: string): ModelHandle | null {
+    const built = buildModelScene(art, model);
     if (!built) return null;
     const span = big ? 2 : 1;
     const pos = this.alloc(span);

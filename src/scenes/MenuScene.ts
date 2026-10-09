@@ -64,6 +64,9 @@ export class MenuScene extends Phaser.Scene {
       this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('battle'));
     });
 
+    const editor = txt(this, 46, 40, '🛠 编辑器', 18, '#ffeec2', 4).setInteractive({ useHandCursor: true });
+    editor.on('pointerdown', () => location.assign(new URL('card-editor.html', location.href).href));
+
     const gear = txt(this, width - 44, 40, '⚙ 设置', 18, '#ffeec2', 4).setInteractive({ useHandCursor: true });
     gear.on('pointerdown', () =>
       openSettings(this, {
@@ -75,5 +78,6 @@ export class MenuScene extends Phaser.Scene {
     );
 
     txt(this, width / 2, height - 24, '美术：AI 生成立绘 · 图标 game-icons.net (CC BY 3.0)', 12, '#a09070', 3);
+
   }
 }

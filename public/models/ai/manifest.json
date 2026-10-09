@@ -1,4 +1,4 @@
 {
-  "arts": ["p_orc", "p_troll", "p_tauren", "p_mage", "p_dwarf", "p_elf"],
-  "yaw": { "p_tauren": 0, "p_mage": 0, "p_dwarf": 0, "p_elf": 0 }
+  "arts": ["p_orc", "p_troll", "p_tauren", "p_mage", "p_dwarf", "p_elf", "e_necro", "e_skeleton", "e_ghoul", "e_abom"],
+  "yaw": { "p_tauren": 0, "p_mage": 0, "p_dwarf": 0, "p_elf": 0, "e_ghoul": 0, "e_necro": 0, "e_abom": 0 }
 }
