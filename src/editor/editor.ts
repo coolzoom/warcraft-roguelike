@@ -72,6 +72,7 @@ const EFFECT_LABEL: Record<SpellEffect['kind'], string> = {
   shield_all: '群体护盾',
   draw: '抽牌',
   burn: '灼烧（持续伤害）',
+  airstrike: '巨龙空袭（全体火焰 + 灼烧）',
 };
 
 const AI_HINT: Record<EnemyAI, string> = {
@@ -468,6 +469,8 @@ function effectFieldsHtml(effect: SpellEffect) {
       return `<div class="effect-grid">${field('count', '抽牌数量', effect.count)}</div>`;
     case 'burn':
       return `<div class="effect-grid">${presentation}${field('amount', '每回合伤害', effect.amount)}${field('turns', '持续回合', effect.turns ?? 3)}</div>`;
+    case 'airstrike':
+      return `<div class="effect-grid">${field('amount', '全体伤害', effect.amount)}${field('burn', '每回合灼烧', effect.burn)}</div>`;
   }
 }
 
@@ -511,6 +514,10 @@ function readEffectFields(effect: SpellEffect, container: HTMLElement) {
       effect.amount = read('amount');
       effect.turns = read('turns') > 0 ? read('turns') : undefined;
       break;
+    case 'airstrike':
+      effect.amount = read('amount');
+      effect.burn = read('burn');
+      break;
   }
 }
 
@@ -535,6 +542,8 @@ function describeSpell(spell: SpellDef) {
         return `抽 ${effect.count} 张牌`;
       case 'burn':
         return `使目标灼烧 ${effect.turns ?? 3} 回合，每回合 ${effect.amount} 点伤害（已灼烧时翻倍）`;
+      case 'airstrike':
+        return `召唤巨龙对所有敌人造成 ${effect.amount} 点火焰伤害，并灼烧（每回合 ${effect.burn}）`;
     }
   });
   return parts.join('，') || (el<HTMLInputElement>('spell-desc').value.trim() || spell.name);
@@ -560,6 +569,8 @@ function defaultEffect(kind: SpellEffect['kind']): SpellEffect {
       return { kind, count: 2 };
     case 'burn':
       return { kind, amount: 3, turns: 3 };
+    case 'airstrike':
+      return { kind, amount: 16, burn: 4 };
   }
 }
 

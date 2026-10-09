@@ -78,6 +78,13 @@
     font-size: 14px;
   }
   footer { margin-top: 48px; color: var(--muted); font-size: 13px; text-align: center; }
+  h3 { color: #ffe0a0; font-size: 18px; margin: 28px 0 6px; }
+  .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 20px 0; }
+  .shots figure { margin: 0; }
+  .shots figure img { width: 100%; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 15px; }
+  th, td { border: 1px solid #4a3620; padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--panel); color: var(--gold); }
 </style>
 </head>
 <body>
@@ -113,6 +120,111 @@
     <li><strong>一路往前打：</strong>清空一波后三选一奖励（新卡、修缮大本营、法术强化等），然后背景向前滚动，部落进入下一波。英雄带着血量和星级跟进下一波。</li>
     <li><strong>BOSS：</strong><span class="tag">每 5 波</span> 一个，依次是冰霜骨龙、霜冠巫妖、恐惧魔王，之后循环并逐轮变强。每个 BOSS 每隔几回合放一次大招（冰霜吐息、召唤亡灵加冰冻、邪能火雨），击败后可以选「能量上限 +1」或「全体英雄升星」。</li>
     <li><strong>失败：</strong>大本营血量归零即结束，会记录最远到达的波次。</li>
+  </ul>
+
+  <h2>版本更新</h2>
+  <div class="lead">
+    <p>这一版加入了 3D 镜头操作、最后一击慢动作，以及九个新玩法：暴击、元素反应、英雄大招、首领预警与换位躲避、首领狂暴化、传说卡「巨龙空袭」、阵营羁绊、遗物和分支路线地图。</p>
+    <p>所有功能都有自动化测试（<code>.playtest/features.mjs</code>、<code>finale.mjs</code>、<code>orbit.mjs</code>），全部通过。数值是第一版，需要实际玩几局再调。</p>
+  </div>
+
+  <h3>镜头与动作</h3>
+  <ul>
+    <li><strong>AI 模型动作：</strong>10 个 AI 生成的 3D 模型都绑定了骨骼，有待机、行走、攻击、施法、受击、欢呼、眩晕、死亡 8 套动作。</li>
+    <li><strong>旋转镜头：</strong>在战场空地上拖动可以转动视角，松手后保持不变。双击空地或点右上角「⟲ 视角」回到默认视角。转动后点击单位、技能特效都按实际画面位置计算。</li>
+    <li><strong>滚轮缩放：</strong>在战场上滚动鼠标滚轮可以拉近或拉远，手牌区域滚动不会缩放。</li>
+    <li><strong>最后一击慢动作：</strong>每波最后一个敌人倒下时，画面闪白，上下出现黑边，弹出「最后一击！」，镜头推到敌人身上慢放约 1.5 秒，然后回到你原来的视角，再出胜利横幅。</li>
+  </ul>
+  <div class="shots">
+    <figure><img src="up_orbit.png" alt="旋转镜头" /><figcaption>拖动战场旋转视角</figcaption></figure>
+    <figure><img src="up_finale.png" alt="最后一击" /><figcaption>最后一击：慢动作和镜头聚焦</figcaption></figure>
+  </div>
+
+  <h3>战斗手感</h3>
+  <ul>
+    <li><strong>暴击：</strong>英雄攻击基础暴击率 10%，造成 1.8 倍伤害，显示橙色大号「暴击」数字，并有一瞬间的画面停顿和震屏。</li>
+    <li><strong>击飞：</strong>暴击、元素反应或伤害大量溢出的击杀，会把敌人击飞出去。</li>
+    <li><strong>元素反应：</strong>
+      <ul>
+        <li>火打冰冻目标 → <span class="tag">蒸汽爆炸</span>：追加伤害，并溅射周围敌人</li>
+        <li>物理打冰冻目标 → <span class="tag">碎冰</span>：必定暴击</li>
+        <li>闪电打灼烧目标 → <span class="tag">超载</span>：引爆灼烧，并弹射一个敌人</li>
+      </ul>
+      寒冰箭、冰霜法师的大招、巫妖的冰霜新星会造成冰冻（单位上显示 ❄ 并变蓝）。冰霜法师普攻属冰，雷鸣萨满属雷，暗影术士属火，其余英雄是物理。顺序很关键，比如先寒冰箭再火球术。
+    </li>
+  </ul>
+
+  <h3>英雄大招</h3>
+  <p>英雄攻击、受击、击杀都会积攒怒气（血条下方的橙色条）。怒气满时，英雄脚下出现金色光圈，<strong>在你的回合点击英雄</strong>即可免费释放大招。释放时有过场：慢动作、镜头推向英雄、技能名横幅划过屏幕。</p>
+  <table>
+    <tr><th>英雄</th><th>大招</th><th>效果</th></tr>
+    <tr><td>兽人步兵</td><td>旋风斩</td><td>全体 160% 攻击伤害</td></tr>
+    <tr><td>巨魔猎手</td><td>飞斧风暴</td><td>随机 6 把飞斧，每把 90%</td></tr>
+    <tr><td>牛头人萨满</td><td>战争践踏</td><td>全体 120% 并眩晕 1 回合</td></tr>
+    <tr><td>冰霜法师</td><td>冰封领域</td><td>全体 220% 冰霜伤害并冰冻</td></tr>
+    <tr><td>矮人狂战士</td><td>雷霆一击</td><td>前排 400% 必定暴击</td></tr>
+    <tr><td>月神祭司</td><td>星辰坠落</td><td>全体 200%，治疗友军 14</td></tr>
+    <tr><td>圣盾卫士</td><td>圣光审判</td><td>前排 250%，全队护盾 12</td></tr>
+    <tr><td>游侠</td><td>箭雨</td><td>随机 8 支箭，每支 80%</td></tr>
+    <tr><td>暗影术士</td><td>灵魂虹吸</td><td>全体 160% 火焰伤害并灼烧，吸取生命</td></tr>
+    <tr><td>雷鸣萨满</td><td>雷霆风暴</td><td>6 道落雷，每道 110%（可引爆灼烧）</td></tr>
+  </table>
+
+  <h3>首领战</h3>
+  <ul>
+    <li><strong>地面预警：</strong>首领每 3 回合会先在英雄脚下标出红色预警圈，下回合再轰击（攻击的 2.2 倍，冰系附带冰冻，火系附带灼烧）。在你的回合里，<strong>拖动英雄</strong>到别的位置就能躲开，全部躲开会显示「完美闪避！」。冰霜骨龙轰击一整排，巫妖砸 2 个位置，恐惧魔王砸 3 个位置。</li>
+    <li><strong>狂暴化：</strong>首领血量降到一半时触发过场，天色变成血红，首领攻击 +30%，召唤 2 个援军，之后预警范围更大。</li>
+  </ul>
+  <div class="shots">
+    <figure><img src="up_ult.png" alt="大招过场" /><figcaption>冰霜法师大招「冰封领域」</figcaption></figure>
+    <figure><img src="up_telegraph.png" alt="预警圈" /><figcaption>红色预警圈，拖动英雄换位躲避</figcaption></figure>
+    <figure><img src="up_phase2.png" alt="首领狂暴化" /><figcaption>首领半血狂暴化</figcaption></figure>
+  </div>
+
+  <h3>传说卡：巨龙空袭</h3>
+  <p>3 费。打出后，一条冰霜巨龙从左下角斜着飞过战场，沿途喷火，对所有敌人造成 16 点火焰伤害，并附加每回合 4 点的灼烧。可能出现在史诗卡奖励和商店里。火焰打中冰冻的敌人同样会触发蒸汽爆炸。</p>
+  <div class="shots">
+    <figure><img src="up_dragon.png" alt="巨龙空袭" /><figcaption>巨龙空袭</figcaption></figure>
+  </div>
+
+  <h3>肉鸽系统</h3>
+  <ul>
+    <li><strong>站位：</strong>前排（上面 3 个位置）受到伤害 -15%，后排（下面 2 个位置）暴击率 +10%。英雄可以随时拖动换位。</li>
+    <li><strong>阵营羁绊：</strong>按场上不同英雄的数量激活，状态显示在左上角，点一下可以看说明。
+      <ul>
+        <li>⚔️ 战士（兽人步兵、矮人狂战士、圣盾卫士）：2 名全体受伤 -1，3 名 -3</li>
+        <li>🏹 猎手（巨魔猎手、游侠）：2 名暴击率 +15%</li>
+        <li>🔮 法师（冰霜法师、暗影术士）：2 名法术伤害 +3</li>
+        <li>🌀 萨满（牛头人萨满、雷鸣萨满）：2 名每回合开始全体回复 4</li>
+        <li>🌙 精灵（月神祭司、游侠）：2 名怒气获取 +50%</li>
+        <li>🐗 部落（兽人、巨魔、牛头人、雷鸣萨满）：3 名全体攻击 +2</li>
+      </ul>
+    </li>
+    <li><strong>遗物（12 种，整局生效）：</strong>战争号角、嗜血图腾、烈焰之心、永冻之晶、雷霆之锤、怒火徽记、致命匕首、先知法珠、龙鳞护符、屠夫砍刀、先祖王冠、地精金币。精英战和首领战结束后三选一，商店和奇遇里也能拿到。已有遗物显示在左上角，点一下可以看说明。</li>
+    <li><strong>金币：</strong>每波胜利获得金币，精英战双倍，首领战三倍，显示在左上角。</li>
+    <li><strong>分支路线地图：</strong>选完卡牌奖励后选择下一站：
+      <ul>
+        <li>⚔️ 战斗：普通敌人，奖励卡牌和金币</li>
+        <li>💀 精英：敌人约 1.5 倍强，奖励遗物和双倍金币</li>
+        <li>🔥 营火：休息（全体回满、大本营 +20）、锻造（随机英雄 +1 星）或冥想（全体怒气充满）</li>
+        <li>🛒 商店：买卡牌（30 到 120 金币）、遗物（100）、修缮城墙（30）</li>
+        <li>❓ 奇遇：神秘祭坛、流浪地精、先祖之灵、遗落的宝箱，四选一随机出现</li>
+      </ul>
+      营火、商店、奇遇不消耗波次，但每段路只能绕道一次。首领战前固定可以先去营火。
+    </li>
+  </ul>
+  <div class="shots">
+    <figure><img src="up_route.png" alt="路线地图" /><figcaption>选择前进路线</figcaption></figure>
+    <figure><img src="up_shop.png" alt="商店" /><figcaption>地精商店</figcaption></figure>
+  </div>
+
+  <h3>相关代码</h3>
+  <ul>
+    <li><code>src/run.ts</code>：大招、元素反应、羁绊、遗物、首领预警、路线的数据，调数值主要改这里。</li>
+    <li><code>src/scenes/route.ts</code>：路线、商店、营火、奇遇、遗物选择界面。</li>
+    <li><code>src/scenes/BattleScene.ts</code>：战斗逻辑，包括伤害、暴击、反应、大招过场、首领预警、狂暴化、巨龙空袭。</li>
+    <li><code>src/three/view.ts</code>：镜头旋转、缩放、聚焦和慢动作的共享状态。</li>
+    <li>「巨龙空袭」同时写在 <code>src/data.ts</code> 和 <code>public/card-data.json</code> 里，因为后者会整表覆盖卡牌数据。卡牌编辑器也支持编辑它。</li>
   </ul>
 
   <h2>素材</h2>

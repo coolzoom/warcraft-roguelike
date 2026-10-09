@@ -27,11 +27,13 @@ const CAM_ELEV = Math.atan2(CAM_OFFSET.y, CAM_OFFSET.z);
 const FOG_NEAR = 36;
 const FOG_FAR = 66;
 
-export type Mood = 'day' | 'boss';
+export type Mood = 'day' | 'boss' | 'elite' | 'rage';
 
 const MOODS: Record<Mood, { fog: number; sky: number; ground: number; sun: number; sunI: number; hemiI: number }> = {
   day: { fog: 0x7d8458, sky: 0xfff1d6, ground: 0x4a5a2a, sun: 0xffe2b0, sunI: 2.3, hemiI: 1.5 },
   boss: { fog: 0x3b2440, sky: 0xc8a0ff, ground: 0x3a2030, sun: 0xff9a7a, sunI: 1.5, hemiI: 1.0 },
+  elite: { fog: 0x8a5a3a, sky: 0xffc89a, ground: 0x4a3a20, sun: 0xff9a4a, sunI: 2.0, hemiI: 1.2 },
+  rage: { fog: 0x4a1210, sky: 0xff8a6a, ground: 0x3a1010, sun: 0xff4a2a, sunI: 1.9, hemiI: 0.9 },
 };
 
 function rng(seed: number) {

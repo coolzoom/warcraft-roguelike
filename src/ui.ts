@@ -51,6 +51,10 @@ export class UnitView extends Phaser.GameObjects.Container {
   private stunText: Phaser.GameObjects.Text;
   private burnMark: Phaser.GameObjects.Text;
   private targetRing: Phaser.GameObjects.Arc;
+  private frostMark: Phaser.GameObjects.Text;
+  private rageFill?: Phaser.GameObjects.Rectangle;
+  private rageGlow?: Phaser.GameObjects.Arc;
+  private frozen = false;
   readonly portrait: Phaser.GameObjects.Image;
   private barW: number;
   private idle?: Phaser.Tweens.Tween;
@@ -101,8 +105,18 @@ export class UnitView extends Phaser.GameObjects.Container {
     this.atkText = txt(scene, r * 0.72, r * 0.68 + 1, '', 13, '#ffffff', 3);
     this.starText = txt(scene, 0, r + 10, '', 12, '#ffd700', 3);
     this.stunText = txt(scene, -r * 0.8, -r * 0.6, '💫', 18).setVisible(false);
+    this.frostMark = scene.add.text(r * 0.8, -r * 0.6, '❄️', { fontSize: '18px' }).setOrigin(0.5).setVisible(false);
 
-    this.add([shadow, this.targetRing, this.ring, this.portrait, barBg, this.hpFill, badge, this.hpText, this.shieldText, atkBadge, atkIcon, this.atkText, this.starText, this.stunText, this.burnMark]);
+    this.add([shadow, this.targetRing, this.ring, this.portrait, barBg, this.hpFill, badge, this.hpText, this.shieldText, atkBadge, atkIcon, this.atkText, this.starText, this.stunText, this.burnMark, this.frostMark]);
+    if (ally) {
+      // rage: fills from attacks and hits; full = tap the hero for its ultimate
+      const rageY = barY + 9;
+      this.rageGlow = scene.add.circle(0, r * 0.85, r * 1.05).setStrokeStyle(4, 0xffb020, 1).setScale(1, 0.42).setVisible(false);
+      const rageBg = scene.add.rectangle(0, rageY, this.barW, 5, 0x140c06).setStrokeStyle(1, 0x000000);
+      this.rageFill = scene.add.rectangle(-this.barW / 2, rageY, 0, 3, 0xffa020).setOrigin(0, 0.5);
+      this.addAt(this.rageGlow, 1);
+      this.add([rageBg, this.rageFill]);
+    }
     scene.add.existing(this);
 
     if (!this.model) this.idle = scene.tweens.add({
@@ -146,6 +160,39 @@ export class UnitView extends Phaser.GameObjects.Container {
 
   setBurn(on: boolean) {
     this.burnMark.setVisible(on);
+  }
+
+  setFrozen(on: boolean) {
+    this.frozen = on;
+    this.frostMark.setVisible(on);
+    if (on) this.portrait.setTint(0x9fdcff);
+    else this.portrait.clearTint();
+  }
+
+  /** 0..1; at 1 the hero glows and is ready to unleash its ultimate. */
+  setRage(ratio: number) {
+    if (!this.rageFill || !this.rageGlow) return;
+    const full = ratio >= 1;
+    this.scene.tweens.add({ targets: this.rageFill, width: this.barW * Math.min(1, ratio), duration: 200 });
+    this.rageFill.fillColor = full ? 0xfff070 : 0xffa020;
+    if (full === this.rageGlow.visible) return;
+    this.rageGlow.setVisible(full);
+    this.scene.tweens.killTweensOf(this.rageGlow);
+    if (full) this.scene.tweens.add({ targets: this.rageGlow, alpha: { from: 1, to: 0.35 }, scaleX: { from: 1, to: 1.12 }, duration: 450, yoyo: true, repeat: -1 });
+  }
+
+  /** Model yaw (0 faces the camera / down the screen). */
+  setFacing(yaw: number) {
+    this.model?.setFacing(yaw);
+    return this;
+  }
+
+  /** Just the figure and its shadow: no bars or badges (for flybys and cutscene props). */
+  bare() {
+    this.list.forEach((o, i) => {
+      if (i > 0 && o !== this.portrait) (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false);
+    });
+    return this;
   }
 
   get hasModel() {
@@ -200,7 +247,7 @@ export class UnitView extends Phaser.GameObjects.Container {
     this.act('hit');
     this.portrait.setTintFill(0xffffff);
     this.scene.time.delayedCall(80, () => this.portrait.setTint(0xff6060));
-    this.scene.time.delayedCall(220, () => this.portrait.clearTint());
+    this.scene.time.delayedCall(220, () => (this.frozen ? this.portrait.setTint(0x9fdcff) : this.portrait.clearTint()));
     const ox = this.x;
     this.scene.tweens.add({ targets: this, x: ox + 6, duration: 40, yoyo: true, repeat: 2, onComplete: () => (this.x = ox) });
   }

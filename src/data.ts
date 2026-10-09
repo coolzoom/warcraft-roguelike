@@ -65,7 +65,8 @@ export type SpellEffect = { visual?: SkillVisual } & (
   | { kind: 'buff_all'; atk: number; shield?: number }
   | { kind: 'shield_all'; amount: number }
   | { kind: 'draw'; count: number }
-  | { kind: 'burn'; amount: number; turns?: number });
+  | { kind: 'burn'; amount: number; turns?: number }
+  | { kind: 'airstrike'; amount: number; burn: number });
 
 export interface SpellDef {
   id: string;
@@ -112,6 +113,7 @@ export const SPELLS: Record<string, SpellDef> = {
   arcane_intellect: { id: 'arcane_intellect', name: '奥术智慧', icon: 'ic_lightning-storm', color: 0x8a7cf0, target: 'none', desc: '抽 2 张牌', effects: [{ kind: 'draw', count: 2 }] },
   rally: { id: 'rally', name: '集结号令', icon: 'ic_checked-shield', color: 0xb8a060, target: 'none', desc: '本波战斗全体友军攻击 +2，并获得 4 点护盾', effects: [{ kind: 'buff_all', atk: 2, shield: 4 }] },
   smite: { id: 'smite', name: '惩击', icon: 'ic_crossed-swords', color: 0x9a2020, target: 'enemy', desc: '对一个敌人造成 14 点伤害', effects: [{ kind: 'damage_single', amount: 14 }] },
+  dragon_strike: { id: 'dragon_strike', name: '巨龙空袭', icon: 'ic_fireball', color: 0xff5a1a, target: 'none', desc: '传说：召唤巨龙掠过战场，对所有敌人造成 16 点火焰伤害并灼烧（每回合 4）', effects: [{ kind: 'airstrike', amount: 16, burn: 4 }] },
 };
 
 export const CARDS: Record<string, CardDef> = {
@@ -138,6 +140,7 @@ export const CARDS: Record<string, CardDef> = {
   arcane_intellect: { id: 'arcane_intellect', kind: 'spell', cost: 1, rarity: 'common', ref: 'arcane_intellect' },
   rally: { id: 'rally', kind: 'spell', cost: 1, rarity: 'rare', ref: 'rally' },
   smite: { id: 'smite', kind: 'spell', cost: 2, rarity: 'rare', ref: 'smite' },
+  dragon_strike: { id: 'dragon_strike', kind: 'spell', cost: 3, rarity: 'epic', ref: 'dragon_strike' },
 };
 
 export const STARTING_DECK = [
