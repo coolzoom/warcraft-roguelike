@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import * as THREE from 'three';
 import { Animator, Action, ProceduralAnimator } from './animator';
 import { instantiate } from './models';
+import { getView } from './view';
 
 /**
  * Renders every 3D model into one shared offscreen WebGL canvas laid out as
@@ -17,8 +18,8 @@ export const ATLAS_KEY = 'models3d';
 
 export interface ModelHandle {
   frame: string;
-  /** Vertical origin (0..1 from top) where the model's feet land in its frame. */
-  footY: number;
+  /** Vertical origin (0..1 from top) where the model's feet land in its frame; follows the view pitch. */
+  readonly footY: number;
   /** Frame size in px. */
   size: number;
   play(action: Action): Promise<void>;
@@ -34,6 +35,8 @@ interface Slot {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   anim: Animator | ProceduralAnimator;
+  aim: (yaw: number, pitch: number) => number;
+  footY: number;
 }
 
 /** Model instance with its own lights and a camera framing it like the battlefield view. */
@@ -59,14 +62,20 @@ export function buildModelScene(art: string, explicitModel?: string) {
   const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 100);
   const dist = extent / 2 / Math.tan(THREE.MathUtils.degToRad(14));
   const target = new THREE.Vector3(0, h * 0.55, 0);
-  const pitch = THREE.MathUtils.degToRad(22);
-  camera.position.set(0, target.y + Math.sin(pitch) * dist, Math.cos(pitch) * dist);
-  camera.lookAt(target);
-  camera.updateMatrixWorld();
-  const foot = new THREE.Vector3(0, 0, 0).project(camera);
-  const footY = (1 - foot.y) / 2;
+  const pitch0 = THREE.MathUtils.degToRad(22);
+  const foot = new THREE.Vector3();
+  /** Orbit the cell camera with the battlefield view; returns where the feet land (0..1 from top). */
+  const aim = (yaw: number, pitch: number) => {
+    const p = pitch0 + pitch;
+    const flat = Math.cos(p) * dist;
+    camera.position.set(Math.sin(yaw) * flat, target.y + Math.sin(p) * dist, Math.cos(yaw) * flat);
+    camera.lookAt(target);
+    camera.updateMatrixWorld();
+    return (1 - foot.set(0, 0, 0).project(camera).y) / 2;
+  };
+  const footY = aim(0, 0);
   const anim = model.procedural ? new ProceduralAnimator(model.root, h) : new Animator(model.root, model.clips);
-  return { model, facing, scene, camera, footY, anim };
+  return { model, facing, scene, camera, footY, anim, aim };
 }
 
 class Stage {
@@ -121,14 +130,16 @@ class Stage {
     const pos = this.alloc(span);
     if (!pos) return null;
 
-    const { facing, scene, camera, footY, anim } = built;
-    const slot: Slot = { col: pos.col, row: pos.row, span, scene, camera, anim };
+    const { facing, scene, camera, footY, anim, aim } = built;
+    const slot: Slot = { col: pos.col, row: pos.row, span, scene, camera, anim, aim, footY };
     this.slots.add(slot);
     const frame = big ? `b${pos.col}_${pos.row}` : `c${pos.col}_${pos.row}`;
     let released = false;
     return {
       frame,
-      footY,
+      get footY() {
+        return slot.footY;
+      },
       size: CELL * span,
       play: (action) => (released ? Promise.resolve() : slot.anim.play(action)),
       setFacing: (yaw) => (facing.rotation.y = yaw),
@@ -156,7 +167,9 @@ class Stage {
     r.setScissorTest(false);
     r.clear();
     r.setScissorTest(true);
+    const { yaw, pitch } = getView();
     this.slots.forEach((s) => {
+      s.footY = s.aim(yaw, pitch);
       s.anim.update(dt);
       const size = CELL * s.span;
       const x = s.col * CELL;

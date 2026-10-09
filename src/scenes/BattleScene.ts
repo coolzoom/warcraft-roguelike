@@ -16,6 +16,7 @@ import {
 } from '../data';
 import { CardView, UnitView, tweenP, txt, wait } from '../ui';
 import { Background, addBackground } from '../three/battlefield';
+import { enableOrbit, homeOrbit, isAway, isOrbiting, orbitBy, releaseOrbit } from '../three/view';
 import { addPoints, getDeck, rank, runPoints, talentPoints } from '../meta';
 
 /** Flat stat bonuses from the unit-branch talents. */
@@ -82,6 +83,11 @@ const ENEMY_SLOTS = [
 ];
 const ENEMY_FILL_ORDER = [1, 0, 2, 4, 3, 5];
 const BOSS_SLOT = 4;
+/** Drags starting on empty ground between the top bar and the bottom HUD orbit the camera. */
+const ORBIT_TOP = 56;
+const ORBIT_BOTTOM = 650;
+/** Feet sit this far below a unit view's origin (UnitView radius 36 × 0.85). */
+const UNIT_FOOT = 31;
 const HAND_Y = 868;
 const HUD_Y = 715;
 const BASE_POS = { x: 215, y: HUD_Y };
@@ -93,6 +99,7 @@ const atkOf = (u: Unit) => u.baseAtk + u.bonusAtk;
 export class BattleScene extends Phaser.Scene {
   private bg!: Background;
   private bgScroll = 0;
+  private orbiting = false;
 
   private deck: string[] = [];
   private drawPile: string[] = [];
@@ -198,6 +205,83 @@ export class BattleScene extends Phaser.Scene {
     this.input.on('pointerdown', (_p: Phaser.Input.Pointer, objs: Phaser.GameObjects.GameObject[]) => {
       if (objs.length === 0 && this.selected) this.deselect();
     });
+    this.setupOrbit();
+  }
+
+  // ---------------------------------------------------------------- camera orbit
+
+  /**
+   * Drag empty battlefield to look around; the view stays where released.
+   * Units keep their 2D layout for gameplay and tweens, and are drawn (and hit-tested)
+   * where the orbited camera sees their ground spot. Double-tap or ⟲ returns home.
+   */
+  private setupOrbit() {
+    this.orbiting = false;
+    if (!this.bg.orbitable) return;
+    enableOrbit(true);
+    const { width } = this.scale;
+    const home = txt(this, width - 48, 82, '⟲ 视角', 15, '#ffeec2', 4).setDepth(60).setVisible(false);
+    home.setInteractive({ useHandCursor: true }).on('pointerdown', () => homeOrbit());
+    let downAt = { x: 0, y: 0 };
+    let lastTap = 0;
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer, objs: Phaser.GameObjects.GameObject[]) => {
+      if (objs.length > 0 || p.y <= ORBIT_TOP || p.y >= ORBIT_BOTTOM) return;
+      this.orbiting = true;
+      downAt = { x: p.x, y: p.y };
+    });
+    this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+      if (this.orbiting && p.isDown) orbitBy(p.x - p.prevPosition.x, p.y - p.prevPosition.y);
+    });
+    const end = (p?: Phaser.Input.Pointer) => {
+      if (!this.orbiting) return;
+      this.orbiting = false;
+      releaseOrbit();
+      if (!p || Math.hypot(p.x - downAt.x, p.y - downAt.y) > 8) return;
+      const now = this.time.now;
+      if (now - lastTap < 320) homeOrbit();
+      lastTap = now;
+    };
+    this.input.on('pointerup', end);
+    this.input.on('gameout', () => end());
+
+    const restores: (() => void)[] = [];
+    const units = () => [...this.allies, ...this.enemies].filter((u): u is Unit => !!u?.view.active);
+    const project = () => {
+      home.setVisible(isAway());
+      if (!isOrbiting()) {
+        units().forEach((u) => u.view.clearProjection());
+        return;
+      }
+      const remap = this.bg.remap;
+      for (const u of units()) {
+        restores.push(u.view.project(remap));
+        const l = u.label;
+        if (l?.active) {
+          const { x, y } = l;
+          const q = remap(x, y);
+          l.setPosition(q.x, q.y);
+          restores.push(() => l.setPosition(x, y));
+        }
+      }
+    };
+    const restore = () => restores.splice(0).forEach((f) => f());
+    this.events.on(Phaser.Scenes.Events.PRE_RENDER, project);
+    this.events.on(Phaser.Scenes.Events.RENDER, restore);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.events.off(Phaser.Scenes.Events.PRE_RENDER, project);
+      this.events.off(Phaser.Scenes.Events.RENDER, restore);
+      enableOrbit(false);
+    });
+  }
+
+  /**
+   * Effects are authored at unit layout points (around view.x/y); place them where
+   * that unit is drawn under the orbited camera. HUD points below the field stay put.
+   */
+  private pt(x: number, y: number) {
+    if (!isOrbiting() || y >= ORBIT_BOTTOM) return { x, y };
+    const p = this.bg.remap(x, y + UNIT_FOOT);
+    return { x: p.x, y: p.y - UNIT_FOOT * p.scale };
   }
 
   private refreshHud() {
@@ -226,7 +310,8 @@ export class BattleScene extends Phaser.Scene {
     band.destroy();
   }
 
-  private floatText(x: number, y: number, str: string, color: string, size = 22) {
+  private floatText(x0: number, y0: number, str: string, color: string, size = 22) {
+    const { x, y } = this.pt(x0, y0);
     const t = txt(this, x, y, str, size, color, 5).setDepth(40);
     this.tweens.add({ targets: t, y: y - 50, alpha: 0, duration: 800, ease: 'Cubic.out', onComplete: () => t.destroy() });
   }
@@ -831,9 +916,11 @@ export class BattleScene extends Phaser.Scene {
     else await this.projectile(from, to, visual === 'fire' ? 0xff6a1a : color, visual === 'fire' ? 14 : size, visual === 'fire' ? 'cast' : 'attack');
   }
 
-  private async projectile(from: { x: number; y: number }, to: { x: number; y: number }, color: number, size = 8, animation: 'attack' | 'cast' | 'cheer' = 'attack') {
+  private async projectile(src: { x: number; y: number }, dst: { x: number; y: number }, color: number, size = 8, animation: 'attack' | 'cast' | 'cheer' = 'attack') {
     // Units wind up a throw / cast and release the projectile on the impact frame.
-    if (from instanceof UnitView) await from.act(animation);
+    if (src instanceof UnitView) await src.act(animation);
+    const from = this.pt(src.x, src.y);
+    const to = this.pt(dst.x, dst.y);
     const p = this.add.circle(from.x, from.y, size, color).setDepth(30);
     const glow = this.add.circle(from.x, from.y, size * 2, color, 0.35).setDepth(29);
     await tweenP(this, { targets: [p, glow], x: to.x, y: to.y, duration: 260, ease: 'Quad.in' });
@@ -841,7 +928,8 @@ export class BattleScene extends Phaser.Scene {
     glow.destroy();
   }
 
-  private burst(x: number, y: number, color: number, count = 10) {
+  private burst(x0: number, y0: number, color: number, count = 10) {
+    const { x, y } = this.pt(x0, y0);
     for (let i = 0; i < count; i++) {
       const a = Math.random() * Math.PI * 2;
       const d = 30 + Math.random() * 40;
@@ -850,17 +938,20 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  private async iceShards(target: { x: number; y: number }) {
+  private async iceShards(at: { x: number; y: number }) {
+    const target = this.pt(at.x, at.y);
     const shards = [];
     for (let i = 0; i < 4; i++) {
       const s = this.add.rectangle(target.x + (Math.random() - 0.5) * 50, target.y - 200 - i * 30, 6, 22, 0xbfeaff).setDepth(30).setAngle(15);
       shards.push(tweenP(this, { targets: s, y: target.y, duration: 260 + i * 40, ease: 'Quad.in' }).then(() => s.destroy()));
     }
     await Promise.all(shards);
-    this.burst(target.x, target.y, 0x9fe3ff, 8);
+    this.burst(at.x, at.y, 0x9fe3ff, 8);
   }
 
-  private lightning(from: { x: number; y: number }, to: { x: number; y: number }) {
+  private lightning(src: { x: number; y: number }, dst: { x: number; y: number }) {
+    const from = this.pt(src.x, src.y);
+    const to = this.pt(dst.x, dst.y);
     const g = this.add.graphics().setDepth(30);
     g.lineStyle(4, 0xd0c8ff, 1);
     g.beginPath();

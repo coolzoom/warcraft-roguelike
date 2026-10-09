@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import * as THREE from 'three';
 import { add, cyl, toon } from './parts';
+import { getView } from './view';
 
 /**
  * Stylized 3D forest road rendered into its own canvas and registered as a Phaser
@@ -18,6 +19,11 @@ const GROUND_W = 30;
 const ROAD = 3.3;
 /** World units per scrolled 2D pixel (the 2D background's scroll unit). */
 const PX = 0.02;
+/** Camera orbit pivot on the ground and the default camera offset from it. */
+const PIVOT = new THREE.Vector3(0, 0, -6);
+const CAM_OFFSET = new THREE.Vector3(0, 28, 20);
+const CAM_DIST = CAM_OFFSET.length();
+const CAM_ELEV = Math.atan2(CAM_OFFSET.y, CAM_OFFSET.z);
 
 export type Mood = 'day' | 'boss';
 
@@ -263,6 +269,10 @@ class Battlefield {
   readonly renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(40, W / H, 1, 120);
+  /** Default framing: the 2D layout is authored against this view. */
+  private home = new THREE.PerspectiveCamera(40, W / H, 1, 120);
+  private ray = new THREE.Raycaster();
+  private ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private world = new THREE.Group();
   private hemi: THREE.HemisphereLight;
   private sun: THREE.DirectionalLight;
@@ -289,8 +299,10 @@ class Battlefield {
     this.fog = new THREE.Fog(MOODS.day.fog, 36, 66);
     this.scene.fog = this.fog;
     this.scene.background = new THREE.Color(MOODS.day.fog);
-    this.camera.position.set(0, 28, 14);
-    this.camera.lookAt(0, 0, -6);
+    this.home.position.copy(PIVOT).add(CAM_OFFSET);
+    this.home.lookAt(PIVOT);
+    this.home.updateMatrixWorld();
+    this.placeCamera();
 
     this.hemi = new THREE.HemisphereLight(MOODS.day.sky, MOODS.day.ground, MOODS.day.hemiI);
     this.scene.add(this.hemi);
@@ -361,7 +373,32 @@ class Battlefield {
     };
   }
 
+  /** Orbit the camera about PIVOT by the shared view yaw/pitch. */
+  private placeCamera() {
+    const { yaw, pitch } = getView();
+    const elev = CAM_ELEV + pitch;
+    const flat = CAM_DIST * Math.cos(elev);
+    this.camera.position.set(PIVOT.x + flat * Math.sin(yaw), PIVOT.y + CAM_DIST * Math.sin(elev), PIVOT.z + flat * Math.cos(yaw));
+    this.camera.lookAt(PIVOT);
+    this.camera.updateMatrixWorld();
+  }
+
+  /**
+   * Where a ground point drawn at 2D (x, y) in the default view appears now,
+   * and how much nearer (>1) or farther it is, for scaling sprites standing there.
+   */
+  remap(x: number, y: number) {
+    this.placeCamera();
+    this.ray.setFromCamera(new THREE.Vector2((x / W) * 2 - 1, 1 - (y / H) * 2), this.home);
+    const p = this.ray.ray.intersectPlane(this.ground, new THREE.Vector3());
+    if (!p) return { x, y, scale: 1 };
+    const scale = p.distanceTo(this.home.position) / p.distanceTo(this.camera.position);
+    const s = p.clone().project(this.camera);
+    return { x: ((s.x + 1) / 2) * W, y: ((1 - s.y) / 2) * H, scale };
+  }
+
   private render() {
+    this.placeCamera();
     this.timer.update();
     const dt = Math.min(0.05, this.timer.getDelta());
     this.time += dt;
@@ -433,6 +470,9 @@ export interface Background {
   /** Scroll in 2D pixels; decreasing values march forward. */
   setScroll(px: number): void;
   setMood(m: Mood): void;
+  /** False for the flat fallback road, which can't orbit. */
+  orbitable: boolean;
+  remap(x: number, y: number): { x: number; y: number; scale: number };
 }
 
 /** Bottom layer of a scene: the 3D battlefield, or the flat painted road when WebGL is unavailable. */
@@ -444,9 +484,17 @@ export function addBackground(scene: Phaser.Scene, mood: Mood = 'day'): Backgrou
     field.acquire();
     field.setMood(mood, true);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => field.release());
-    return { setScroll: (px) => (field.scroll = px), setMood: (m) => field.setMood(m) };
+    return {
+      setScroll: (px) => (field.scroll = px),
+      setMood: (m) => field.setMood(m),
+      orbitable: true,
+      remap: (x, y) => {
+        const p = field.remap((x / width) * W, (y / height) * H);
+        return { x: (p.x / W) * width, y: (p.y / H) * height, scale: p.scale };
+      },
+    };
   }
   const tile = scene.add.tileSprite(0, 0, width, height, 'bg_loop').setOrigin(0);
   tile.tileScaleX = tile.tileScaleY = width / scene.textures.get('bg').getSourceImage().width;
-  return { setScroll: (px) => (tile.tilePositionY = px), setMood: () => undefined };
+  return { setScroll: (px) => (tile.tilePositionY = px), setMood: () => undefined, orbitable: false, remap: (x, y) => ({ x, y, scale: 1 }) };
 }

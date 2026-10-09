@@ -37,6 +37,9 @@ export function wait(scene: Phaser.Scene, ms: number) {
   return new Promise<void>((resolve) => scene.time.delayedCall(ms, resolve));
 }
 
+/** Maps a 2D ground point in the default view to where it is drawn now (see Battlefield.remap). */
+export type Remap = (x: number, y: number) => { x: number; y: number; scale: number };
+
 export class UnitView extends Phaser.GameObjects.Container {
   readonly radius: number;
   private ring: Phaser.GameObjects.Arc;
@@ -147,6 +150,50 @@ export class UnitView extends Phaser.GameObjects.Container {
 
   get hasModel() {
     return !!this.model;
+  }
+
+  /**
+   * Draw where the orbited battlefield camera sees this unit's ground spot (feet).
+   * Returns the restore for after rendering, so gameplay/tweens keep the 2D layout.
+   */
+  project(remap: Remap): () => void {
+    const { x, y, scaleX, scaleY } = this;
+    const foot = this.radius * 0.85 * scaleY;
+    const p = remap(x, y + foot);
+    this.setScale(scaleX * p.scale, scaleY * p.scale);
+    this.setPosition(p.x, p.y - foot * p.scale);
+    if (this.model) this.portrait.setOrigin(0.5, this.model.footY);
+    this.shown = { x: this.x, y: this.y, s: this.scaleX };
+    this.hitWhereShown();
+    return () => {
+      this.setScale(scaleX, scaleY);
+      this.setPosition(x, y);
+    };
+  }
+
+  /** Back to the default view: hit-test at the 2D layout again. */
+  clearProjection() {
+    this.shown = null;
+  }
+
+  /** Where project() last drew the container; input between frames tests clicks there. */
+  private shown: { x: number; y: number; s: number } | null = null;
+  private hitWrapped = false;
+
+  private hitWhereShown() {
+    const input = this.portrait.input;
+    if (!input || this.hitWrapped) return;
+    this.hitWrapped = true;
+    const inner = input.hitAreaCallback;
+    input.hitAreaCallback = (area: any, lx: number, ly: number, obj: Phaser.GameObjects.GameObject) => {
+      const s = this.shown;
+      if (!s) return inner(area, lx, ly, obj);
+      const ptr = this.scene.input.activePointer;
+      const p = this.portrait;
+      const x = ((ptr.worldX - s.x) / s.s - p.x) / p.scaleX + p.displayOriginX;
+      const y = ((ptr.worldY - s.y) / s.s - p.y) / p.scaleY + p.displayOriginY;
+      return inner(area, x, y, obj);
+    };
   }
 
   hitFlash() {
