@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>卡牌编辑器 - 部落远征</title>
+    <link rel="stylesheet" href="/src/editor/editor.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="title">卡牌编辑器</span>
+        <span class="subtitle">编辑单位卡、法术卡、敌人与起始牌组</span>
+      </div>
+      <div class="actions">
+        <a class="btn" href="./index.html">返回游戏</a>
+        <button id="btn-new-unit" class="btn primary">新建单位卡</button>
+        <button id="btn-new-spell" class="btn primary">新建法术卡</button>
+        <button id="btn-new-enemy" class="btn primary">新建敌人</button>
+        <button id="btn-new-skill" class="btn primary">新建单位技能</button>
+        <button id="btn-save-project" class="btn success">写入项目</button>
+        <button id="btn-export" class="btn">导出 JSON</button>
+        <button id="btn-import" class="btn">导入 JSON</button>
+        <button id="btn-code" class="btn">生成 data.ts 片段</button>
+        <button id="btn-reset" class="btn danger">恢复默认</button>
+        <input id="file-input" type="file" accept="application/json" hidden />
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="panel list-panel">
+        <div class="tabs">
+          <button id="tab-cards" class="tab active">卡牌</button>
+          <button id="tab-skills" class="tab">单位技能</button>
+          <button id="tab-enemies" class="tab">敌人</button>
+        </div>
+        <div class="panel-head">
+          <input id="search" class="input" placeholder="搜索名称 / ID" />
+        </div>
+        <div id="card-list" class="card-list"></div>
+        <div class="panel-foot">
+          <span id="summary" class="muted"></span>
+        </div>
+      </aside>
+
+      <section class="panel editor-panel">
+        <div id="editor-empty" class="empty">选择左侧条目进行编辑，或新建一张卡牌 / 一个敌人</div>
+
+        <div id="card-body" class="editor-body hidden">
+          <div class="editor-grid">
+            <label class="field">
+              <span>卡牌 ID</span>
+              <input id="card-id" class="input" type="text" />
+            </label>
+            <label class="field">
+              <span>费用</span>
+              <input id="card-cost" class="input" type="number" min="0" max="9" />
+            </label>
+            <label class="field">
+              <span>稀有度</span>
+              <select id="card-rarity" class="input">
+                <option value="common">common 普通</option>
+                <option value="rare">rare 稀有</option>
+                <option value="epic">epic 史诗</option>
+              </select>
+            </label>
+          </div>
+
+          <h3 id="ref-title" class="section-title"></h3>
+
+          <div id="unit-fields" class="editor-grid hidden">
+            <label class="field"><span>名称</span><input id="unit-name" class="input" type="text" /></label>
+            <label class="field"><span>立绘 art</span><select id="unit-art" class="input"></select></label>
+            <label class="field"><span>单位 3D 模型</span><select id="unit-model" class="input"></select></label>
+            <p class="muted small wide">自动模式跟随立绘和游戏模型设置；指定模型后优先使用所选模型。右侧预览为卡面立绘。</p>
+            <label class="field"><span>攻击力</span><input id="unit-atk" class="input" type="number" min="0" /></label>
+            <label class="field"><span>生命值</span><input id="unit-hp" class="input" type="number" min="1" /></label>
+            <label class="field">
+              <span>技能</span>
+              <select id="unit-skill" class="input">
+                <option value="front">front 攻击最前排敌人</option>
+                <option value="double">double 两次攻击优先残血</option>
+                <option value="taunt_heal">taunt_heal 嘲讽并全队治疗</option>
+                <option value="aoe">aoe 攻击全部敌人</option>
+                <option value="stun">stun 几率眩晕目标</option>
+                <option value="heal">heal 治疗最残血友军</option>
+                <option value="guard">guard 攻击后全队护盾</option>
+                <option value="snipe">snipe 狙击残血敌人</option>
+                <option value="drain">drain 攻击并吸血</option>
+                <option value="chain_attack">chain_attack 闪电连锁</option>
+              </select>
+            </label>
+            <label class="field checkbox"><span>嘲讽</span><input id="unit-taunt" type="checkbox" /></label>
+            <label class="field wide"><span>描述</span><input id="unit-desc" class="input" type="text" /></label>
+          </div>
+
+          <div id="spell-fields" class="hidden">
+            <div class="editor-grid">
+              <label class="field"><span>名称</span><input id="spell-name" class="input" type="text" /></label>
+              <label class="field"><span>图标 icon</span><select id="spell-icon" class="input"></select></label>
+              <label class="field">
+                <span>目标</span>
+                <select id="spell-target" class="input">
+                  <option value="enemy">enemy 需点击单个敌人</option>
+                  <option value="none">none 无需选择目标</option>
+                </select>
+              </label>
+              <label class="field"><span>颜色</span><input id="spell-color" class="input color" type="color" /></label>
+              <label class="field wide"><span>描述</span><input id="spell-desc" class="input" type="text" /></label>
+            </div>
+
+            <h3 class="section-title">
+              法术效果
+              <select id="effect-new" class="input inline-select">
+                <option value="damage_single">单体伤害</option>
+                <option value="execute">斩杀（残血加伤）</option>
+                <option value="damage_all">群体伤害</option>
+                <option value="chain">闪电连锁</option>
+                <option value="heal_all">群体治疗</option>
+                <option value="buff_all">群体增益</option>
+                <option value="shield_all">群体护盾</option>
+                <option value="draw">抽牌</option>
+                <option value="burn">灼烧（持续伤害）</option>
+              </select>
+              <button id="btn-effect-add" class="btn small">添加效果</button>
+            </h3>
+            <div id="effect-list" class="effect-list"></div>
+            <p class="muted small">提示：伤害、治疗、护盾会自动叠加「法术强度」加成。</p>
+          </div>
+
+          <div class="row">
+            <button id="btn-dupe" class="btn">复制卡牌</button>
+            <button id="btn-delete" class="btn danger">删除卡牌</button>
+            <span id="status" class="status"></span>
+          </div>
+        </div>
+
+        <div id="skill-body" class="editor-body hidden">
+          <div class="editor-grid">
+            <label class="field"><span>技能 ID</span><input id="skill-id" class="input" type="text" /></label>
+            <label class="field"><span>技能名称</span><input id="skill-name" class="input" type="text" /></label>
+            <label class="field wide"><span>技能描述</span><input id="skill-desc" class="input" type="text" /></label>
+          </div>
+
+          <h3 class="section-title">
+            行为序列
+            <select id="action-new" class="input inline-select">
+              <option value="attack_front">攻击最前排</option>
+              <option value="attack_weakest">攻击最残血</option>
+              <option value="attack_all">攻击多个敌人</option>
+              <option value="heal_lowest">治疗最残血友军</option>
+              <option value="heal_all">治疗全体友军</option>
+              <option value="shield_all">全体护盾</option>
+            </select>
+            <button id="btn-action-add" class="btn small">添加行为</button>
+          </h3>
+          <div id="action-list" class="effect-list"></div>
+          <p class="muted small">攻击力按单位当前攻击计算；治疗与护盾默认随星级成长，勾选「不随星级成长」则固定数值。动作和特效会在技能释放时真实播放。</p>
+
+          <div class="row">
+            <button id="btn-skill-dupe" class="btn">复制技能</button>
+            <button id="btn-skill-delete" class="btn danger">删除技能</button>
+            <span id="status-skill" class="status"></span>
+          </div>
+        </div>
+
+        <div id="enemy-body" class="editor-body hidden">
+          <div class="editor-grid">
+            <label class="field"><span>敌人 ID</span><input id="enemy-id" class="input" type="text" /></label>
+            <label class="field"><span>名称</span><input id="enemy-name" class="input" type="text" /></label>
+            <label class="field"><span>立绘 art</span><select id="enemy-art" class="input"></select></label>
+            <label class="field"><span>敌人 3D 模型</span><select id="enemy-model" class="input"></select></label>
+            <label class="field"><span>攻击力</span><input id="enemy-atk" class="input" type="number" min="0" /></label>
+            <label class="field"><span>生命值</span><input id="enemy-hp" class="input" type="number" min="1" /></label>
+            <label class="field"><span>护甲 armor</span><input id="enemy-armor" class="input" type="number" min="0" /></label>
+            <label class="field">
+              <span>AI 行为</span>
+              <select id="enemy-ai" class="input">
+                <option value="basic">basic 普通攻击</option>
+                <option value="armored">armored 带护甲</option>
+                <option value="summoner">summoner 召唤小怪</option>
+                <option value="cleave">cleave 顺劈两个目标</option>
+                <option value="boss_dragon">boss_dragon 周期群体吐息</option>
+                <option value="boss_lich">boss_lich 召唤 + 冰霜新星</option>
+                <option value="boss_demon">boss_demon 火雨 + 吸血单体</option>
+              </select>
+            </label>
+            <label class="field checkbox"><span>BOSS</span><input id="enemy-boss" type="checkbox" /></label>
+            <label class="field wide"><span>描述</span><input id="enemy-desc" class="input" type="text" /></label>
+          </div>
+
+          <h3 class="section-title">AI 参数</h3>
+          <div class="editor-grid">
+            <label class="field"><span>召唤物 summonKey</span><select id="enemy-summon-key" class="input"></select></label>
+            <label class="field"><span>召唤数量 summonCount</span><input id="enemy-summon-count" class="input" type="number" min="0" /></label>
+            <label class="field"><span>顺劈倍率 cleaveRatio</span><input id="enemy-cleave" class="input" type="number" step="0.1" min="0" /></label>
+            <label class="field"><span>群体倍率 aoeRatio</span><input id="enemy-aoe" class="input" type="number" step="0.1" min="0" /></label>
+            <label class="field"><span>大招打大本营 aoeBaseDamage</span><input id="enemy-aoe-base" class="input" type="number" min="0" /></label>
+            <label class="field"><span>吸血比例 lifesteal</span><input id="enemy-lifesteal" class="input" type="number" step="0.1" min="0" /></label>
+            <label class="field"><span>眩晕回合 stunTurns</span><input id="enemy-stun" class="input" type="number" min="0" /></label>
+          </div>
+          <p id="enemy-ai-hint" class="muted small"></p>
+
+          <div class="row">
+            <button id="btn-enemy-dupe" class="btn">复制敌人</button>
+            <button id="btn-enemy-delete" class="btn danger">删除敌人</button>
+            <span id="status-enemy" class="status"></span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel preview-panel">
+        <h3 class="section-title">预览</h3>
+        <div id="preview" class="preview-card empty">暂无预览</div>
+
+        <div id="deck-section">
+          <h3 class="section-title">起始牌组</h3>
+          <div class="deck-row">
+            <select id="deck-add" class="input"></select>
+            <button id="btn-deck-add" class="btn small">添加</button>
+          </div>
+          <div id="deck-list" class="deck-list"></div>
+        </div>
+
+        <h3 class="section-title">校验</h3>
+        <div id="validation" class="validation"></div>
+      </aside>
+    </main>
+
+    <dialog id="code-dialog" class="dialog">
+      <h3>data.ts 片段</h3>
+      <p class="muted">复制后粘贴到 <code>src/data.ts</code> 对应常量即可。</p>
+      <textarea id="code-area" class="code" readonly></textarea>
+      <div class="dialog-actions">
+        <button id="btn-copy-code" class="btn primary">复制</button>
+        <button id="btn-close-code" class="btn">关闭</button>
+      </div>
+    </dialog>
+
+    <script type="module" src="/src/editor/editor.ts"></script>
+  </body>
+</html>

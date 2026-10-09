@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { ENEMIES, SPELLS, UNITS } from '../data';
+import { loadModels } from '../three/models';
 import { FONT, txt } from '../ui';
 
 const ICONS = ['fireball', 'frozen-orb', 'health-normal', 'axe-swing', 'lightning-storm', 'checked-shield', 'crossed-swords'];
@@ -30,7 +31,12 @@ export class BootScene extends Phaser.Scene {
     arts.forEach((a) => this.makeCircle(a));
     Object.values(SPELLS).forEach((s) => this.makeSpellArt(s.id, s.icon, s.color, s.name));
     this.makeMirroredBg();
-    this.scene.start('menu');
+    const { width, height } = this.scale;
+    txt(this, width / 2, height / 2 + 50, '召唤部落勇士...', 18, '#ffd27a');
+    // Without the 3D models units fall back to their round portraits.
+    loadModels()
+      .catch((err) => console.warn('3D models unavailable:', err))
+      .then(() => this.scene.start('menu'));
   }
 
   /** Round battlefield token cropped around the face of a square bust portrait. */

@@ -1,0 +1,10 @@
+{
+  "models": {
+    "p_orc": "兽人步兵", "p_troll": "巨魔猎手", "p_tauren": "牛头人萨满",
+    "p_mage": "冰霜法师", "p_dwarf": "矮人战士", "p_elf": "月神祭司",
+    "e_ghoul": "食尸鬼", "e_skeleton": "骷髅战士", "e_necro": "死灵法师", "e_abom": "憎恶",
+    "b_dragon": "冰霜骨龙", "b_lich": "霜冠巫妖", "b_demon": "恐惧魔王"
+  },
+  "animations": { "attack": "攻击动作", "cast": "施法动作", "cheer": "欢呼动作", "none": "不播放动作" },
+  "visuals": { "none": "无特效", "projectile": "飞弹", "fire": "火球", "ice": "冰晶", "lightning": "闪电", "heal": "治疗光点", "shield": "护盾光点", "burst": "能量爆发" }
+}
