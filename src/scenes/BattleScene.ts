@@ -16,7 +16,7 @@ import {
 } from '../data';
 import { CardView, UnitView, tweenP, txt, wait } from '../ui';
 import { Background, addBackground } from '../three/battlefield';
-import { enableOrbit, homeOrbit, isAway, isOrbiting, orbitBy, releaseOrbit, zoomBy } from '../three/view';
+import { enableOrbit, endFocus, focusOn, homeOrbit, isAway, isOrbiting, orbitBy, releaseOrbit, setTimeScale, zoomBy } from '../three/view';
 import { addPoints, getDeck, rank, runPoints, talentPoints } from '../meta';
 
 /** Flat stat bonuses from the unit-branch talents. */
@@ -93,6 +93,9 @@ const HUD_Y = 715;
 const BASE_POS = { x: 215, y: HUD_Y };
 const MAX_LEVEL = 5;
 const HAND_SIZE = 5;
+/** Last-hit cinematic: world speed and how long it lasts in real time. */
+const SLOWMO = 0.3;
+const SLOWMO_MS = 1500;
 
 const atkOf = (u: Unit) => u.baseAtk + u.bonusAtk;
 
@@ -109,6 +112,9 @@ export class BattleScene extends Phaser.Scene {
 
   private allies: (Unit | null)[] = [];
   private enemies: (Unit | null)[] = [];
+  /** Dead units still playing their death, kept so they are drawn from the orbited view. */
+  private fading: Unit[] = [];
+  private finale: Promise<void> | null = null;
 
   private wave = 1;
   private turn = 0;
@@ -145,6 +151,9 @@ export class BattleScene extends Phaser.Scene {
     this.selected = null;
     this.allies = new Array(ALLY_SLOTS.length).fill(null);
     this.enemies = new Array(ENEMY_SLOTS.length).fill(null);
+    this.fading = [];
+    this.finale = null;
+    this.setSlow(1);
     this.wave = Math.max(1, Number(new URLSearchParams(location.search).get('wave')) || 1);
     this.firstWave = this.wave;
     this.turn = 0;
@@ -248,7 +257,7 @@ export class BattleScene extends Phaser.Scene {
     });
 
     const restores: (() => void)[] = [];
-    const units = () => [...this.allies, ...this.enemies].filter((u): u is Unit => !!u?.view.active);
+    const units = () => [...this.allies, ...this.enemies, ...this.fading].filter((u): u is Unit => !!u?.view.active);
     const project = () => {
       home.setVisible(isAway());
       if (!isOrbiting()) {
@@ -274,7 +283,43 @@ export class BattleScene extends Phaser.Scene {
       this.events.off(Phaser.Scenes.Events.PRE_RENDER, project);
       this.events.off(Phaser.Scenes.Events.RENDER, restore);
       enableOrbit(false);
+      setTimeScale(1);
     });
+  }
+
+  /** Scale both Phaser clocks and the 3D animation clock. */
+  private setSlow(s: number) {
+    this.time.timeScale = s;
+    this.tweens.timeScale = s;
+    setTimeScale(s);
+  }
+
+  /** The wave's last enemy falls: slow motion while the camera swoops onto it, then back to the player's view. */
+  private async lastHit(u: Unit) {
+    const { width, height } = this.scale;
+    const real = (ms: number) => ms * SLOWMO;
+    const g = this.bg.groundOffset(u.view.x, u.view.y + u.view.radius * 0.85);
+    focusOn(g.x, g.z, u.boss ? 0.72 : 0.6, u.view.x < width / 2 ? 0.28 : -0.28);
+    this.setSlow(SLOWMO);
+    this.cameras.main.flash(180, 255, 236, 190);
+
+    const bars = [
+      this.add.rectangle(0, 0, width, 64, 0x000000).setOrigin(0, 1),
+      this.add.rectangle(0, height, width, 64, 0x000000).setOrigin(0, 0),
+    ].map((b) => b.setDepth(55));
+    this.tweens.add({ targets: bars[0], y: 64, duration: real(260), ease: 'Cubic.out' });
+    this.tweens.add({ targets: bars[1], y: height - 64, duration: real(260), ease: 'Cubic.out' });
+    const title = txt(this, width / 2, 150, '最后一击！', 46, u.boss ? '#ff6a5a' : '#ffd040', 8).setDepth(56).setScale(2.2).setAlpha(0);
+    this.tweens.add({ targets: title, scale: 1, alpha: 1, duration: real(280), ease: 'Back.out' });
+
+    await new Promise((r) => setTimeout(r, SLOWMO_MS));
+    if (!this.sys.isActive()) return;
+    this.setSlow(1);
+    endFocus();
+    this.tweens.add({ targets: bars[0], y: 0, duration: 320, ease: 'Cubic.in' });
+    this.tweens.add({ targets: bars[1], y: height, duration: 320, ease: 'Cubic.in', onComplete: () => bars.forEach((b) => b.destroy()) });
+    await tweenP(this, { targets: title, alpha: 0, y: title.y - 30, duration: 320 });
+    title.destroy();
   }
 
   /**
@@ -392,6 +437,8 @@ export class BattleScene extends Phaser.Scene {
   private async onWaveCleared() {
     this.busy = true;
     this.deselect();
+    await this.finale;
+    this.finale = null;
     await wait(this, 300);
     await this.discardHand();
     const boss = isBossWave(this.wave);
@@ -863,6 +910,8 @@ export class BattleScene extends Phaser.Scene {
     this.burst(u.view.x, u.view.y, u.side === 'enemy' ? 0x8aff8a : 0xff4a4a, 18);
     const has3d = u.view.hasModel;
     if (has3d) u.view.act('die');
+    if (u.side === 'enemy' && !this.finale && this.liveEnemies().length === 0) this.finale = this.lastHit(u);
+    this.fading.push(u);
     this.tweens.add({
       targets: [u.view, u.label].filter(Boolean),
       alpha: 0,
@@ -871,6 +920,7 @@ export class BattleScene extends Phaser.Scene {
       duration: has3d ? 300 : 400,
       delay: has3d ? 650 : 150,
       onComplete: () => {
+        this.fading = this.fading.filter((f) => f !== u);
         u.view.destroy();
         u.label?.destroy();
       },

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import * as THREE from 'three';
 import { add, cyl, toon } from './parts';
-import { getView } from './view';
+import { getTimeScale, getView } from './view';
 
 /**
  * Stylized 3D forest road rendered into its own canvas and registered as a Phaser
@@ -275,6 +275,7 @@ class Battlefield {
   private home = new THREE.PerspectiveCamera(40, W / H, 1, 120);
   private ray = new THREE.Raycaster();
   private ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  private pivot = new THREE.Vector3();
   private world = new THREE.Group();
   private hemi: THREE.HemisphereLight;
   private sun: THREE.DirectionalLight;
@@ -375,14 +376,15 @@ class Battlefield {
     };
   }
 
-  /** Orbit the camera about PIVOT by the shared view yaw/pitch. */
+  /** Orbit the camera about PIVOT (shifted by any focus) by the shared view yaw/pitch. */
   private placeCamera() {
-    const { yaw, pitch, dist: zoom } = getView();
+    const { yaw, pitch, dist: zoom, fx, fz } = getView();
     const elev = CAM_ELEV + pitch;
     const dist = CAM_DIST * zoom;
     const flat = dist * Math.cos(elev);
-    this.camera.position.set(PIVOT.x + flat * Math.sin(yaw), PIVOT.y + dist * Math.sin(elev), PIVOT.z + flat * Math.cos(yaw));
-    this.camera.lookAt(PIVOT);
+    const pivot = this.pivot.set(PIVOT.x + fx, PIVOT.y, PIVOT.z + fz);
+    this.camera.position.set(pivot.x + flat * Math.sin(yaw), pivot.y + dist * Math.sin(elev), pivot.z + flat * Math.cos(yaw));
+    this.camera.lookAt(pivot);
     this.camera.updateMatrixWorld();
     // keep the haze at the same depth behind the field when zooming
     this.fog.near = FOG_NEAR + (dist - CAM_DIST);
@@ -403,10 +405,17 @@ class Battlefield {
     return { x: ((s.x + 1) / 2) * W, y: ((1 - s.y) / 2) * H, scale };
   }
 
+  /** Ground point under 2D (x, y) of the default view, as an offset from PIVOT. */
+  groundOffset(x: number, y: number) {
+    this.ray.setFromCamera(new THREE.Vector2((x / W) * 2 - 1, 1 - (y / H) * 2), this.home);
+    const p = this.ray.ray.intersectPlane(this.ground, new THREE.Vector3());
+    return p ? { x: p.x - PIVOT.x, z: p.z - PIVOT.z } : { x: 0, z: 0 };
+  }
+
   private render() {
     this.placeCamera();
     this.timer.update();
-    const dt = Math.min(0.05, this.timer.getDelta());
+    const dt = Math.min(0.05, this.timer.getDelta()) * getTimeScale();
     this.time += dt;
     const t = this.time;
 
@@ -479,6 +488,8 @@ export interface Background {
   /** False for the flat fallback road, which can't orbit. */
   orbitable: boolean;
   remap(x: number, y: number): { x: number; y: number; scale: number };
+  /** Ground offset from the camera pivot under a 2D point, for focusOn(). */
+  groundOffset(x: number, y: number): { x: number; z: number };
 }
 
 /** Bottom layer of a scene: the 3D battlefield, or the flat painted road when WebGL is unavailable. */
@@ -498,9 +509,16 @@ export function addBackground(scene: Phaser.Scene, mood: Mood = 'day'): Backgrou
         const p = field.remap((x / width) * W, (y / height) * H);
         return { x: (p.x / W) * width, y: (p.y / H) * height, scale: p.scale };
       },
+      groundOffset: (x, y) => field.groundOffset((x / width) * W, (y / height) * H),
     };
   }
   const tile = scene.add.tileSprite(0, 0, width, height, 'bg_loop').setOrigin(0);
   tile.tileScaleX = tile.tileScaleY = width / scene.textures.get('bg').getSourceImage().width;
-  return { setScroll: (px) => (tile.tilePositionY = px), setMood: () => undefined, orbitable: false, remap: (x, y) => ({ x, y, scale: 1 }) };
+  return {
+    setScroll: (px) => (tile.tilePositionY = px),
+    setMood: () => undefined,
+    orbitable: false,
+    remap: (x, y) => ({ x, y, scale: 1 }),
+    groundOffset: () => ({ x: 0, z: 0 }),
+  };
 }

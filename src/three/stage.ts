@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import * as THREE from 'three';
 import { Animator, Action, ProceduralAnimator } from './animator';
 import { instantiate } from './models';
-import { getView } from './view';
+import { getTimeScale, getView } from './view';
 
 /**
  * Renders every 3D model into one shared offscreen WebGL canvas laid out as
@@ -161,7 +161,7 @@ class Stage {
 
   private render() {
     this.timer.update();
-    const dt = Math.min(0.05, this.timer.getDelta());
+    const dt = Math.min(0.05, this.timer.getDelta()) * getTimeScale();
     const r = this.renderer;
     const H = CELL * ROWS;
     r.setScissorTest(false);
