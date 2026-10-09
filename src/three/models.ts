@@ -419,9 +419,16 @@ async function buildAiProto(art: string, loader: GLTFLoader, yawDeg = 180): Prom
   });
   // TRELLIS meshes usually face -Z, but not always; the manifest's `yaw` turns each toward the camera (+Z).
   scene.rotation.y = THREE.MathUtils.degToRad(yawDeg);
+  // Rigged by .playtest/ai_rig.py: one animation per clip key; unrigged meshes animate procedurally.
+  const clips: Partial<Record<Clip, THREE.AnimationClip>> = {};
+  for (const k of Object.keys(CLIP_CANDIDATES) as Clip[]) {
+    const c = findClip(gltf.animations, k);
+    if (c) clips[k] = c;
+  }
   const { root, width } = normalize(scene, [1, 1]);
   addOutlines(root);
-  return { root, clips: {}, height: HEIGHT, width, float: !!MODEL_DEFS[art as keyof typeof MODEL_DEFS]?.float, procedural: true };
+  const procedural = !clips.idle;
+  return { root, clips, height: HEIGHT, width, float: !!MODEL_DEFS[art as keyof typeof MODEL_DEFS]?.float, procedural };
 }
 
 /** Area-weighted normals shared by every vertex at the same position, so UV seams don't split the outline hull. */
