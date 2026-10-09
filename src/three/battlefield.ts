@@ -24,6 +24,8 @@ const PIVOT = new THREE.Vector3(0, 0, -6);
 const CAM_OFFSET = new THREE.Vector3(0, 28, 20);
 const CAM_DIST = CAM_OFFSET.length();
 const CAM_ELEV = Math.atan2(CAM_OFFSET.y, CAM_OFFSET.z);
+const FOG_NEAR = 36;
+const FOG_FAR = 66;
 
 export type Mood = 'day' | 'boss';
 
@@ -296,7 +298,7 @@ class Battlefield {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    this.fog = new THREE.Fog(MOODS.day.fog, 36, 66);
+    this.fog = new THREE.Fog(MOODS.day.fog, FOG_NEAR, FOG_FAR);
     this.scene.fog = this.fog;
     this.scene.background = new THREE.Color(MOODS.day.fog);
     this.home.position.copy(PIVOT).add(CAM_OFFSET);
@@ -375,12 +377,16 @@ class Battlefield {
 
   /** Orbit the camera about PIVOT by the shared view yaw/pitch. */
   private placeCamera() {
-    const { yaw, pitch } = getView();
+    const { yaw, pitch, dist: zoom } = getView();
     const elev = CAM_ELEV + pitch;
-    const flat = CAM_DIST * Math.cos(elev);
-    this.camera.position.set(PIVOT.x + flat * Math.sin(yaw), PIVOT.y + CAM_DIST * Math.sin(elev), PIVOT.z + flat * Math.cos(yaw));
+    const dist = CAM_DIST * zoom;
+    const flat = dist * Math.cos(elev);
+    this.camera.position.set(PIVOT.x + flat * Math.sin(yaw), PIVOT.y + dist * Math.sin(elev), PIVOT.z + flat * Math.cos(yaw));
     this.camera.lookAt(PIVOT);
     this.camera.updateMatrixWorld();
+    // keep the haze at the same depth behind the field when zooming
+    this.fog.near = FOG_NEAR + (dist - CAM_DIST);
+    this.fog.far = FOG_FAR + (dist - CAM_DIST);
   }
 
   /**

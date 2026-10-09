@@ -16,7 +16,7 @@ import {
 } from '../data';
 import { CardView, UnitView, tweenP, txt, wait } from '../ui';
 import { Background, addBackground } from '../three/battlefield';
-import { enableOrbit, homeOrbit, isAway, isOrbiting, orbitBy, releaseOrbit } from '../three/view';
+import { enableOrbit, homeOrbit, isAway, isOrbiting, orbitBy, releaseOrbit, zoomBy } from '../three/view';
 import { addPoints, getDeck, rank, runPoints, talentPoints } from '../meta';
 
 /** Flat stat bonuses from the unit-branch talents. */
@@ -213,7 +213,7 @@ export class BattleScene extends Phaser.Scene {
   /**
    * Drag empty battlefield to look around; the view stays where released.
    * Units keep their 2D layout for gameplay and tweens, and are drawn (and hit-tested)
-   * where the orbited camera sees their ground spot. Double-tap or ⟲ returns home.
+   * where the orbited camera sees their ground spot. Wheel zooms. Double-tap or ⟲ returns home.
    */
   private setupOrbit() {
     this.orbiting = false;
@@ -243,6 +243,9 @@ export class BattleScene extends Phaser.Scene {
     };
     this.input.on('pointerup', end);
     this.input.on('gameout', () => end());
+    this.input.on('wheel', (p: Phaser.Input.Pointer, _objs: unknown, _dx: number, dy: number) => {
+      if (p.y > ORBIT_TOP && p.y < ORBIT_BOTTOM) zoomBy(dy);
+    });
 
     const restores: (() => void)[] = [];
     const units = () => [...this.allies, ...this.enemies].filter((u): u is Unit => !!u?.view.active);
