@@ -85,6 +85,11 @@
   table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 15px; }
   th, td { border: 1px solid #4a3620; padding: 6px 10px; text-align: left; vertical-align: top; }
   th { background: var(--panel); color: var(--gold); }
+  .bio { display: flex; gap: 18px; align-items: flex-start; background: var(--panel); border: 2px solid var(--border); border-radius: 12px; padding: 16px 18px; margin: 16px 0; }
+  .bio img { width: 120px; height: 120px; border-radius: 50%; border: 3px solid var(--border); flex-shrink: 0; object-fit: cover; }
+  .bio h3 { margin: 0 0 4px; }
+  .bio p { margin: 4px 0; }
+  .bio .role { color: var(--muted); font-size: 14px; }
 </style>
 </head>
 <body>
@@ -274,7 +279,32 @@
   </div>
 
   <h2>路边来客：先知与乌鸦领主</h2>
-  <p>两位新角色会在波次开场时出现在路边，用对话框说一两句剧情介绍或预言，然后消失。德莱尼先知站在右侧，现身和离开时散出金光；乌鸦领主站在左侧，带紫色的羽光。台词逐字打出，点一下屏幕显示全文，再点一下跳到下一句。</p>
+  <p>两位新角色会在波次开场时出现在路边，用对话框说一两句剧情介绍或预言，然后消失。他们不参战，也不能被攻击，只负责讲故事和给提示。</p>
+
+  <div class="bio" style="border-color: #c9a64a">
+    <img src="bio_prophet.jpg" alt="德莱尼先知" />
+    <div>
+      <h3 style="color: #ffe08a">德莱尼先知</h3>
+      <div class="role">圣光的预言者 · 站在路的右侧 · 金色光芒</div>
+      <p><strong>形象：</strong>淡蓝色皮肤，额前一对弯角，白色长须间垂着德莱尼特有的触须。身穿白金长袍，左手拄着金色法杖，右手掌心向上托着圣光。</p>
+      <p><strong>性格：</strong>温和、睿智，称部落战士为「孩子们」。他相信命运并非注定，每一次选择都会改变前方的路。</p>
+      <p><strong>在剧情里：</strong>他是这场远征的引路人。第 1 波开场由他讲述背景：北方的亡灵天灾正在苏醒，每五段路就有一位首领挡路。每场首领战的前一波，他会预言即将到来的首领并给出打法，比如提醒你拖开骨龙吐息的红圈、对巫妖先冰后火、为魔王的狂暴留好大招。平时偶尔出现，提点羁绊、站位和营火的用处。</p>
+    </div>
+  </div>
+
+  <div class="bio" style="border-color: #8a5ad0">
+    <img src="bio_raven.jpg" alt="乌鸦领主" />
+    <div>
+      <h3 style="color: #c9a0ff">乌鸦领主</h3>
+      <div class="role">亦敌亦友的旁观者 · 站在路的左侧 · 紫色羽光</div>
+      <p><strong>形象：</strong>乌鸦头、黑色喙、发紫光的眼睛，披着黑紫色羽毛斗篷，肩甲饰有铜色羽纹，右手握着顶端镶紫水晶的扭曲木杖。</p>
+      <p><strong>性格：</strong>阴沉、讥讽，说话常带一声「嘎」。他自称在一旁看着，看部落能走多远，立场捉摸不定。</p>
+      <p><strong>在剧情里：</strong>他是黑暗消息的传递者。每击败一位首领，他会在下一波现身嘲讽，并点出下一个等着你的首领。遇到精英战时，他会提醒这批敌人身上有他熟悉的黑暗，打赢就能拿到遗物。平时偶尔出现，暗示商店、精英路线、怒气大招和元素反应的门道。</p>
+    </div>
+  </div>
+
+  <p>两个 3D 模型和其他 AI 模型一样是新生成的，不是下载的现成素材：先用图像生成工具画出参考图，再交给 Hugging Face 上的 TRELLIS 转成带贴图的 3D 模型，最后在本地 Blender 里绑骨并做动画（见下方「3D 模型制作流程」）。在套装模型模式下没有对应模型，会显示圆形立绘。</p>
+  <p>台词逐字打出，点一下屏幕显示全文，再点一下跳到下一句。出现规则如下：</p>
   <table>
     <tr><th>时机</th><th>谁出现</th><th>说什么</th></tr>
     <tr><td>第 1 波</td><td>德莱尼先知</td><td>开场介绍：亡灵天灾在北方苏醒，每五段路有一位首领挡路</td></tr>
@@ -283,7 +313,7 @@
     <tr><td>精英战</td><td>乌鸦领主</td><td>提醒这是精英，打赢有遗物</td></tr>
     <tr><td>其他波次</td><td>随机一位，30% 几率，至少隔 2 波</td><td>玩法小提示：羁绊、站位、营火、商店、怒气大招、元素反应等</td></tr>
   </table>
-  <p>两个模型都是这次用 Hugging Face 的 TRELLIS 生成并绑骨的。在套装模型模式下没有对应模型，会显示圆形立绘。台词和触发规则都在 <code>src/oracle.ts</code>。</p>
+  <p>台词和触发规则都在 <code>src/oracle.ts</code>。</p>
   <div class="shots">
     <figure><img src="stage_intro.png" alt="先知开场" /><figcaption>第 1 波：先知开场介绍</figcaption></figure>
     <figure><img src="stage_foretell.png" alt="先知预言" /><figcaption>第 4 波：先知预言冰霜骨龙</figcaption></figure>
@@ -353,16 +383,16 @@
   </div>
 
   <h2>测试</h2>
-  <p>所有测试都是 <code>.playtest/</code> 下的 puppeteer 脚本，在无头 Chrome 里跑真实游戏，这次逐个运行，全部通过：</p>
+  <p>所有测试都是 <code>.playtest/</code> 下的 puppeteer 脚本，在无头 Chrome 里跑真实游戏。最近一次是 2026 年 10 月 10 日逐个运行，7 套全部通过，共 103 项检查：</p>
   <table>
-    <tr><th>脚本</th><th>覆盖内容</th></tr>
-    <tr><td><code>playtest.mjs</code></td><td>设置面板切换模型、天赋加点与重置、卡组编辑保存、第 1/5/10/15 波开局、出牌、回合结算，3D 模型无泄漏、无报错</td></tr>
-    <tr><td><code>features.mjs</code></td><td>暴击、三种元素反应、羁绊与遗物显示、大招过场、首领预警与拖动躲避、狂暴化、巨龙空袭、路线地图与商店</td></tr>
-    <tr><td><code>finale.mjs</code></td><td>最后一击：慢动作、镜头聚焦、恢复视角、胜利横幅</td></tr>
-    <tr><td><code>orbit.mjs</code></td><td>旋转镜头、转动后点击单位、双击复位、滚轮缩放</td></tr>
-    <tr><td><code>route_screens.mjs</code></td><td>营火、商店、四种奇遇、遗物选择界面</td></tr>
-    <tr><td><code>bosses.mjs</code></td><td>三个首领的 AI 模型加载、待机、攻击、施法</td></tr>
-    <tr><td><code>oracle.mjs</code></td><td>先知开场、首领预言、乌鸦领主嘲讽、套装模式下的立绘兜底，来客离开后正常开始回合</td></tr>
+    <tr><th>脚本</th><th>检查数</th><th>覆盖内容</th></tr>
+    <tr><td><code>playtest.mjs</code></td><td>30</td><td>设置面板切换模型、天赋加点与重置、卡组编辑保存、第 1/5/10/15 波开局、出牌、回合结算，3D 模型无泄漏、无报错</td></tr>
+    <tr><td><code>features.mjs</code></td><td>23</td><td>暴击、三种元素反应、羁绊与遗物显示、大招过场、首领预警与拖动躲避、狂暴化、巨龙空袭、路线地图与商店</td></tr>
+    <tr><td><code>finale.mjs</code></td><td>8</td><td>最后一击：慢动作、镜头聚焦、恢复视角、胜利横幅</td></tr>
+    <tr><td><code>orbit.mjs</code></td><td>13</td><td>旋转镜头、转动后点击单位、双击复位、滚轮缩放</td></tr>
+    <tr><td><code>route_screens.mjs</code></td><td>截图</td><td>营火、商店、四种奇遇、遗物选择界面，无报错</td></tr>
+    <tr><td><code>bosses.mjs</code></td><td>6</td><td>三个首领的 AI 模型加载、待机、攻击、施法</td></tr>
+    <tr><td><code>oracle.mjs</code></td><td>23</td><td>德莱尼先知开场介绍和首领预言、乌鸦领主嘲讽并点出下一个首领、两句台词依次显示、套装模式下的立绘兜底、来客离开后正常开始回合</td></tr>
   </table>
   <p>这次顺手修了两处过时的测试：卡组测试原来写死初始卡组是 10 张（现在是 14 张），设置测试在 AI 模型还没加载完时就点了切回。几项和时间相关的检查（大招慢动作、胜利横幅）在多个浏览器并行跑时会因为帧率下降偶尔失败，单独运行都正常。</p>
 
