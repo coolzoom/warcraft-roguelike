@@ -93,8 +93,8 @@
   <div class="subtitle">Horde Expedition · 魔兽风格回合制肉鸽卡牌对战</div>
 
   <div class="lead">
-    <p>游戏已经做好，可以玩了。它是一个竖屏网页游戏，项目在 <code>~/Projects/warcraft-roguelike</code>，开发服务器运行时，浏览器打开 <a href="http://localhost:5199/">http://localhost:5199/</a> 就能玩。</p>
-    <p>我用无头 Chrome 自动跑了几局，覆盖了出牌、回合结算、BOSS 战、战利品选择、前进到下一波和失败界面，没有报错。不过自动脚本出牌很笨，还没赢过一波正常难度的战斗，所以数值平衡只粗调过一次，需要你亲手玩几局来判断。</p>
+    <p>游戏已经做好，可以玩了。它是一个竖屏网页游戏，项目在 <code>~/Downloads/git/warcraft-roguelike</code>。在项目目录运行 <code>npm run dev</code>，浏览器打开 <a href="http://localhost:5174/">http://localhost:5174/</a> 就能玩。</p>
+    <p>我用无头 Chrome 自动跑了几局，覆盖了出牌、回合结算、BOSS 战、战利品选择、前进到下一波和失败界面，没有报错。不过自动脚本出牌很笨，数值平衡只粗调过，需要你亲手玩几局来判断。</p>
   </div>
 
   <figure>
@@ -104,21 +104,46 @@
 
   <h2>玩法</h2>
   <ul>
-    <li><strong>回合：</strong>每回合 3 点能量、抽 5 张牌。兵牌召唤英雄上场，最多 5 个；法术牌立即生效。点「结束回合」后，英雄按各自技能自动攻击，然后轮到敌人。</li>
-    <li><strong>英雄（6 个）：</strong>
-      <ul>
-        <li>兽人步兵：攻击最前方的敌人</li>
-        <li>巨魔猎手：连投两次飞斧，优先打残血</li>
-        <li>牛头人萨满：嘲讽，每回合群体治疗</li>
-        <li>冰霜法师：攻击全部敌人</li>
-        <li>矮人狂战士：有几率眩晕目标</li>
-        <li>月神祭司：治疗血量最低的友军</li>
-      </ul>
+    <li><strong>回合：</strong>每回合 3 点能量、抽 5 张牌。兵牌召唤英雄上场，最多 5 个（前排 3 个、后排 2 个）；法术牌立即生效。点「结束回合」后，英雄按各自技能自动攻击，然后轮到敌人。大本营初始 80 点生命。</li>
+    <li><strong>英雄（10 个）：</strong>
+      <table>
+        <tr><th>英雄</th><th>攻 / 血</th><th>技能</th></tr>
+        <tr><td>兽人步兵</td><td>6 / 24</td><td>攻击最前方的敌人</td></tr>
+        <tr><td>巨魔猎手</td><td>4 / 15</td><td>投掷两次飞斧，优先打残血</td></tr>
+        <tr><td>牛头人萨满</td><td>4 / 34</td><td>嘲讽；攻击前排后治疗全体友军 3</td></tr>
+        <tr><td>冰霜法师</td><td>3 / 14</td><td>攻击全部敌人（冰属性）</td></tr>
+        <tr><td>矮人狂战士</td><td>8 / 28</td><td>攻击前排，35% 几率眩晕（对首领 15%）</td></tr>
+        <tr><td>月神祭司</td><td>2 / 16</td><td>治疗血量最低的友军 8，并攻击前排</td></tr>
+        <tr><td>圣盾卫士</td><td>5 / 30</td><td>攻击前排，然后全队获得 3 点护盾</td></tr>
+        <tr><td>游侠</td><td>5 / 18</td><td>狙击血量最低的敌人，目标半血以下额外 +4</td></tr>
+        <tr><td>暗影术士</td><td>5 / 20</td><td>攻击前排并按伤害吸血（火属性）</td></tr>
+        <tr><td>雷鸣萨满</td><td>6 / 22</td><td>闪电攻击最多 3 个敌人，伤害逐次衰减（雷属性）</td></tr>
+      </table>
     </li>
     <li><strong>升星：</strong>场上已有同名英雄时再打出这张牌，英雄升一星，最高 5 星。</li>
-    <li><strong>法术（7 张）：</strong>火球术、斩杀、暴风雪、闪电链、治疗波、嗜血术、盾墙。</li>
-    <li><strong>一路往前打：</strong>清空一波后三选一奖励（新卡、修缮大本营、法术强化等），然后背景向前滚动，部落进入下一波。英雄带着血量和星级跟进下一波。</li>
-    <li><strong>BOSS：</strong><span class="tag">每 5 波</span> 一个，依次是冰霜骨龙、霜冠巫妖、恐惧魔王，之后循环并逐轮变强。每个 BOSS 每隔几回合放一次大招（冰霜吐息、召唤亡灵加冰冻、邪能火雨），击败后可以选「能量上限 +1」或「全体英雄升星」。</li>
+    <li><strong>法术（14 张）：</strong>
+      <table>
+        <tr><th>法术</th><th>效果</th></tr>
+        <tr><td>火球术</td><td>对单个敌人造成 10 点伤害</td></tr>
+        <tr><td>寒冰箭</td><td>对单个敌人造成 6 点伤害并眩晕 1 回合（冰冻）</td></tr>
+        <tr><td>惩击</td><td>对单个敌人造成 14 点伤害</td></tr>
+        <tr><td>斩杀</td><td>造成 6 点伤害，目标血量低于一半时改为 20</td></tr>
+        <tr><td>暴风雪</td><td>对所有敌人造成 5 点伤害</td></tr>
+        <tr><td>闪电链</td><td>随机 3 次闪电，每次 7 点伤害</td></tr>
+        <tr><td>陨石术</td><td>对所有敌人造成 9 点伤害，并灼烧 3 回合（每回合 3，已灼烧时翻倍）</td></tr>
+        <tr><td>巨龙空袭</td><td>传说卡：巨龙掠过战场，对所有敌人造成 16 点火焰伤害并灼烧（每回合 4）</td></tr>
+        <tr><td>治疗波</td><td>治疗全体友军 8，大本营 5</td></tr>
+        <tr><td>复苏术</td><td>治疗全体友军 12，大本营 8</td></tr>
+        <tr><td>盾墙</td><td>全体友军获得 8 点护盾</td></tr>
+        <tr><td>嗜血术</td><td>本波全体友军攻击 +3</td></tr>
+        <tr><td>集结号令</td><td>本波全体友军攻击 +2，并获得 4 点护盾</td></tr>
+        <tr><td>奥术智慧</td><td>抽 2 张牌</td></tr>
+      </table>
+    </li>
+    <li><strong>一路往前打：</strong>清空一波后三选一奖励（新卡、修缮大本营、法术强化等），再从路线地图选下一站（见下方「肉鸽系统」）。英雄带着血量和星级跟进下一波。</li>
+    <li><strong>BOSS：</strong><span class="tag">每 5 波</span> 一个，依次是冰霜骨龙、霜冠巫妖、恐惧魔王，之后循环并逐轮变强。每个 BOSS 每隔几回合放一次大招（冰霜吐息、召唤亡灵加冰冻、邪能火雨），会先在地上标出预警圈，半血时狂暴化。击败后可以选「能量上限 +1」或「全体英雄升星」。</li>
+    <li><strong>卡组：</strong>主菜单「🃏 卡组」里可以自己组起始卡组，10 到 16 张，每张卡按稀有度有份数上限。</li>
+    <li><strong>天赋：</strong>每局结束按成绩获得天赋点（每清一波 1 点，每击败一个首领再加 2 点），在主菜单「⭐ 天赋」里投入，分大本营、能量、法术、兵种四系，比如城墙加固、能量之泉（能量上限 +1）、法术回响、先祖之魂（新英雄直接 2 星）。随时可以重置。</li>
     <li><strong>失败：</strong>大本营血量归零即结束，会记录最远到达的波次。</li>
   </ul>
 
@@ -130,7 +155,7 @@
 
   <h3>镜头与动作</h3>
   <ul>
-    <li><strong>AI 模型动作：</strong>10 个 AI 生成的 3D 模型都绑定了骨骼，有待机、行走、攻击、施法、受击、欢呼、眩晕、死亡 8 套动作。</li>
+    <li><strong>AI 模型动作：</strong>13 个 AI 生成的 3D 模型（6 个英雄、4 种敌人、3 个首领）都绑定了骨骼，有待机、行走、攻击、施法、受击、欢呼、眩晕、死亡 8 套动作。恐惧魔王的翅膀会随动作扇动；冰霜骨龙用单独的四足骨骼，翅膀、尾巴、前爪都会动，攻击是扑咬，施法是仰头吐息。</li>
     <li><strong>旋转镜头：</strong>在战场空地上拖动可以转动视角，松手后保持不变。双击空地或点右上角「⟲ 视角」回到默认视角。转动后点击单位、技能特效都按实际画面位置计算。</li>
     <li><strong>滚轮缩放：</strong>在战场上滚动鼠标滚轮可以拉近或拉远，手牌区域滚动不会缩放。</li>
     <li><strong>最后一击慢动作：</strong>每波最后一个敌人倒下时，画面闪白，上下出现黑边，弹出「最后一击！」，镜头推到敌人身上慢放约 1.5 秒，然后回到你原来的视角，再出胜利横幅。</li>
@@ -138,6 +163,8 @@
   <div class="shots">
     <figure><img src="up_orbit.png" alt="旋转镜头" /><figcaption>拖动战场旋转视角</figcaption></figure>
     <figure><img src="up_finale.png" alt="最后一击" /><figcaption>最后一击：慢动作和镜头聚焦</figcaption></figure>
+    <figure><img src="up_boss_lich.png" alt="霜冠巫妖" /><figcaption>第 10 波首领：霜冠巫妖挥剑</figcaption></figure>
+    <figure><img src="up_boss_demon.png" alt="恐惧魔王" /><figcaption>第 15 波首领：恐惧魔王施法</figcaption></figure>
   </div>
 
   <h3>战斗手感</h3>
@@ -238,7 +265,8 @@
     <li><strong>测试参数：</strong>网址后加 <code>?wave=5</code> 可以直接从指定波次开始，比如直接打 BOSS。</li>
     <li><strong>调数值：</strong>卡牌、英雄、敌人、BOSS 的数值和波次生成都在 <code>src/data.ts</code>。</li>
     <li><strong>背景翻转：</strong>为了让背景能无缝循环滚动，战场图做了上下镜像拼接，所以前进几波后会看到倒过来的旗帜和树木。之后要改的话，可以换一张专门做成首尾相接的背景图。</li>
-    <li><strong>重新启动：</strong>以后自己运行用 <code>npm run dev</code>，地址是 <a href="http://localhost:5173/">http://localhost:5173</a>。</li>
+    <li><strong>重新启动：</strong>以后自己运行用 <code>npm run dev</code>，地址是 <a href="http://localhost:5174/">http://localhost:5174</a>。</li>
+    <li><strong>3D 模型：</strong>主菜单右上角「⚙ 设置」里可以在套装模型和 AI 模型之间切换。AI 模型的原始文件在 <code>.playtest/ai_raw/</code>，骨骼参数在 <code>.playtest/ai_rig_spec.json</code>，用 Blender 运行 <code>.playtest/ai_rig.py</code> 重新绑骨并导出到 <code>public/models/ai/</code>。</li>
   </ul>
 
   <footer>代码已提交到项目的 git 仓库 · 部落远征</footer>
