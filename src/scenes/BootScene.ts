@@ -1,7 +1,11 @@
 import Phaser from 'phaser';
 import { ENEMIES, SPELLS, UNITS } from '../data';
+import { ORACLES } from '../oracle';
 import { loadModels } from '../three/models';
 import { FONT, txt } from '../ui';
+
+const allArts = () =>
+  new Set([...Object.values(UNITS).map((u) => u.art), ...Object.values(ENEMIES).map((e) => e.art), ...Object.values(ORACLES).map((o) => o.art)]);
 
 const ICONS = ['fireball', 'frozen-orb', 'health-normal', 'axe-swing', 'lightning-storm', 'checked-shield', 'crossed-swords'];
 
@@ -21,14 +25,12 @@ export class BootScene extends Phaser.Scene {
     });
 
     this.load.image('bg', 'assets/bg_forest.jpg');
-    const arts = new Set([...Object.values(UNITS).map((u) => u.art), ...Object.values(ENEMIES).map((e) => e.art)]);
-    arts.forEach((a) => this.load.image(a, `assets/${a}.jpg`));
+    allArts().forEach((a) => this.load.image(a, `assets/${a}.jpg`));
     ICONS.forEach((i) => this.load.svg(`ic_${i}`, `assets/icons/${i}.svg`, { width: 128, height: 128 }));
   }
 
   create() {
-    const arts = new Set([...Object.values(UNITS).map((u) => u.art), ...Object.values(ENEMIES).map((e) => e.art)]);
-    arts.forEach((a) => this.makeCircle(a));
+    allArts().forEach((a) => this.makeCircle(a));
     Object.values(SPELLS).forEach((s) => this.makeSpellArt(s.id, s.icon, s.color, s.name));
     this.makeMirroredBg();
     const { width, height } = this.scale;

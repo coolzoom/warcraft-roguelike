@@ -150,12 +150,13 @@
   <h2>版本更新</h2>
   <div class="lead">
     <p>这一版加入了 3D 镜头操作、最后一击慢动作，以及九个新玩法：暴击、元素反应、英雄大招、首领预警与换位躲避、首领狂暴化、传说卡「巨龙空袭」、阵营羁绊、遗物和分支路线地图。</p>
-    <p>所有功能都有自动化测试（<code>.playtest/features.mjs</code>、<code>finale.mjs</code>、<code>orbit.mjs</code>），全部通过。数值是第一版，需要实际玩几局再调。</p>
+    <p>之后又补齐了三个首领的 AI 模型，并新增两位路边来客：德莱尼先知和乌鸦领主。他们会在开场、首领战前后和随机时机出现，介绍剧情、预言下一个首领。</p>
+    <p>7 套自动化测试全部通过（见下方「测试」）。数值是第一版，需要实际玩几局再调。</p>
   </div>
 
   <h3>镜头与动作</h3>
   <ul>
-    <li><strong>AI 模型动作：</strong>13 个 AI 生成的 3D 模型（6 个英雄、4 种敌人、3 个首领）都绑定了骨骼，有待机、行走、攻击、施法、受击、欢呼、眩晕、死亡 8 套动作。恐惧魔王的翅膀会随动作扇动；冰霜骨龙用单独的四足骨骼，翅膀、尾巴、前爪都会动，攻击是扑咬，施法是仰头吐息。</li>
+    <li><strong>AI 模型动作：</strong>15 个 AI 生成的 3D 模型（6 个英雄、4 种敌人、3 个首领、2 个路边来客）都绑定了骨骼，有待机、行走、攻击、施法、受击、欢呼、眩晕、死亡 8 套动作。制作过程见下方「3D 模型制作流程」。</li>
     <li><strong>旋转镜头：</strong>在战场空地上拖动可以转动视角，松手后保持不变。双击空地或点右上角「⟲ 视角」回到默认视角。转动后点击单位、技能特效都按实际画面位置计算。</li>
     <li><strong>滚轮缩放：</strong>在战场上滚动鼠标滚轮可以拉近或拉远，手牌区域滚动不会缩放。</li>
     <li><strong>最后一击慢动作：</strong>每波最后一个敌人倒下时，画面闪白，上下出现黑边，弹出「最后一击！」，镜头推到敌人身上慢放约 1.5 秒，然后回到你原来的视角，再出胜利横幅。</li>
@@ -245,8 +246,129 @@
     <figure><img src="up_shop.png" alt="商店" /><figcaption>地精商店</figcaption></figure>
   </div>
 
+  <h2>首领图鉴</h2>
+  <p>每 5 波一个首领，按冰霜骨龙、霜冠巫妖、恐惧魔王的顺序出现，之后循环，每轮更强。下表是基础数值，实际数值随波次放大（每波 +10%），比如第 5 波骨龙是 11 攻 / 210 血，第 15 波魔王是 26 攻 / 552 血。第 10 波起，首领身边还会带一只食尸鬼和一只憎恶。</p>
+  <table>
+    <tr><th>首领</th><th>出场</th><th>基础攻 / 血</th><th>技能（每 3 回合一轮）</th><th>地面预警</th></tr>
+    <tr><td>冰霜骨龙</td><td>第 5 波</td><td>8 / 150</td><td>冰霜吐息：全体英雄受到 70% 攻击伤害，大本营 -5</td><td>冰霜吐息：轰击一整排，附带冰冻</td></tr>
+    <tr><td>霜冠巫妖</td><td>第 10 波</td><td>9 / 190</td><td>亡灵大军：召唤 2 只食尸鬼；冰霜新星：全体 50% 伤害并冰冻 1 名英雄</td><td>冰柱坠落：砸 2 个位置，附带冰冻</td></tr>
+    <tr><td>恐惧魔王</td><td>第 15 波</td><td>11 / 230</td><td>邪能火雨：全体 50% 伤害，大本营 -8；平时以 140% 伤害攻击攻击力最高的英雄并全额吸血</td><td>邪能陨石：砸 3 个位置，附带灼烧</td></tr>
+  </table>
+  <ul>
+    <li><strong>预警节奏：</strong>首领在第 2、5、8…回合标出红圈，下回合轰击（攻击的 2.2 倍）。在你的回合把英雄拖出红圈即可躲开。</li>
+    <li><strong>狂暴化：</strong>血量降到一半时触发过场，天色变红，首领攻击 +30%，召唤 2 个援军，之后预警范围扩大。</li>
+    <li><strong>奖励：</strong>击败首领后全队回满血，金币三倍，可以选「能量上限 +1」或「全体英雄升星」，并三选一获得遗物。</li>
+    <li><strong>模型：</strong>三个首领都有 AI 生成的 3D 模型。巫妖的符文剑固定在右手上，挥砍时不变形；恐惧魔王背后的翅膀会跟着动作扇动；骨龙用单独的四足骨骼，翅膀、三节尾巴和前爪都会动，攻击是扑咬，施法是仰头吐息。</li>
+  </ul>
+  <div class="shots">
+    <figure><img src="boss_fight.png" alt="冰霜骨龙" /><figcaption>第 5 波：冰霜骨龙（AI 模型）</figcaption></figure>
+    <figure><img src="boss_dragon_cast.png" alt="骨龙吐息" /><figcaption>骨龙仰头吐息</figcaption></figure>
+    <figure><img src="up_boss_lich.png" alt="霜冠巫妖" /><figcaption>第 10 波：霜冠巫妖挥剑</figcaption></figure>
+    <figure><img src="up_boss_demon.png" alt="恐惧魔王" /><figcaption>第 15 波：恐惧魔王施法</figcaption></figure>
+  </div>
+  <p>在「⚙ 设置」切回「现有模型」时，首领使用套装模型：</p>
+  <div class="shots">
+    <figure><img src="kit_w5.png" alt="套装骨龙" /><figcaption>套装模型：冰霜骨龙</figcaption></figure>
+    <figure><img src="kit_w10.png" alt="套装巫妖" /><figcaption>套装模型：霜冠巫妖</figcaption></figure>
+    <figure><img src="kit_w15.png" alt="套装魔王" /><figcaption>套装模型：恐惧魔王</figcaption></figure>
+  </div>
+
+  <h2>路边来客：先知与乌鸦领主</h2>
+  <p>两位新角色会在波次开场时出现在路边，用对话框说一两句剧情介绍或预言，然后消失。德莱尼先知站在右侧，现身和离开时散出金光；乌鸦领主站在左侧，带紫色的羽光。台词逐字打出，点一下屏幕显示全文，再点一下跳到下一句。</p>
+  <table>
+    <tr><th>时机</th><th>谁出现</th><th>说什么</th></tr>
+    <tr><td>第 1 波</td><td>德莱尼先知</td><td>开场介绍：亡灵天灾在北方苏醒，每五段路有一位首领挡路</td></tr>
+    <tr><td>首领战前一波（第 4、9、14…波）</td><td>德莱尼先知</td><td>预言下一位首领，并提示打法（骨龙：拖开红圈；巫妖：先冰后火；魔王：留大招等它狂暴）</td></tr>
+    <tr><td>击败首领后的第一波（第 6、11、16…波）</td><td>乌鸦领主</td><td>嘲讽，并点出下一个首领的名字</td></tr>
+    <tr><td>精英战</td><td>乌鸦领主</td><td>提醒这是精英，打赢有遗物</td></tr>
+    <tr><td>其他波次</td><td>随机一位，30% 几率，至少隔 2 波</td><td>玩法小提示：羁绊、站位、营火、商店、怒气大招、元素反应等</td></tr>
+  </table>
+  <p>两个模型都是这次用 Hugging Face 的 TRELLIS 生成并绑骨的。在套装模型模式下没有对应模型，会显示圆形立绘。台词和触发规则都在 <code>src/oracle.ts</code>。</p>
+  <div class="shots">
+    <figure><img src="stage_intro.png" alt="先知开场" /><figcaption>第 1 波：先知开场介绍</figcaption></figure>
+    <figure><img src="stage_foretell.png" alt="先知预言" /><figcaption>第 4 波：先知预言冰霜骨龙</figcaption></figure>
+    <figure><img src="stage_raven.png" alt="乌鸦领主" /><figcaption>第 6 波：乌鸦领主点出下一个首领</figcaption></figure>
+    <figure><img src="stage_oracle_kit.png" alt="立绘模式" /><figcaption>套装模型模式下显示立绘</figcaption></figure>
+  </div>
+
+  <h2>各阶段截图</h2>
+  <p>以下截图都来自这次的自动化测试，按一局游戏的顺序排列。</p>
+  <h3>出发前</h3>
+  <div class="shots">
+    <figure><img src="stage_deck.png" alt="卡组" /><figcaption>卡组编辑</figcaption></figure>
+    <figure><img src="stage_talents.png" alt="天赋" /><figcaption>天赋树</figcaption></figure>
+    <figure><img src="stage_settings.png" alt="设置" /><figcaption>设置：切换角色模型</figcaption></figure>
+  </div>
+  <h3>战斗</h3>
+  <div class="shots">
+    <figure><img src="stage_intro.png" alt="第 1 波" /><figcaption>第 1 波开场</figcaption></figure>
+    <figure><img src="up_ult.png" alt="大招" /><figcaption>英雄大招过场</figcaption></figure>
+    <figure><img src="up_finale.png" alt="最后一击" /><figcaption>最后一击慢动作</figcaption></figure>
+  </div>
+  <h3>波次之间</h3>
+  <div class="shots">
+    <figure><img src="up_route.png" alt="路线" /><figcaption>选择路线</figcaption></figure>
+    <figure><img src="stage_camp.png" alt="营火" /><figcaption>营火：休息、锻造或冥想</figcaption></figure>
+    <figure><img src="up_shop.png" alt="商店" /><figcaption>地精商店</figcaption></figure>
+    <figure><img src="stage_event.png" alt="奇遇" /><figcaption>奇遇：神秘祭坛</figcaption></figure>
+    <figure><img src="stage_relic.png" alt="遗物" /><figcaption>遗物三选一</figcaption></figure>
+  </div>
+  <h3>首领战</h3>
+  <div class="shots">
+    <figure><img src="stage_foretell.png" alt="预言" /><figcaption>第 4 波：先知预言</figcaption></figure>
+    <figure><img src="boss_fight.png" alt="骨龙" /><figcaption>第 5 波：冰霜骨龙</figcaption></figure>
+    <figure><img src="up_telegraph.png" alt="预警" /><figcaption>首领预警圈</figcaption></figure>
+    <figure><img src="up_phase2.png" alt="狂暴" /><figcaption>首领半血狂暴</figcaption></figure>
+    <figure><img src="stage_raven.png" alt="乌鸦" /><figcaption>第 6 波：乌鸦领主</figcaption></figure>
+    <figure><img src="up_boss_lich.png" alt="巫妖" /><figcaption>第 10 波：霜冠巫妖</figcaption></figure>
+    <figure><img src="up_boss_demon.png" alt="魔王" /><figcaption>第 15 波：恐惧魔王</figcaption></figure>
+  </div>
+
+  <h2>3D 模型制作流程</h2>
+  <p>现在一共有 15 个 AI 模型：6 个英雄、4 种敌人、3 个首领、2 个路边来客。每个模型的制作步骤如下，以冰霜骨龙为例。</p>
+  <ol>
+    <li><strong>参考图：</strong>先生成一张灰底、全身、正面朝向的 Q 版角色图，保存在 <code>.playtest/ai_refs/</code>。</li>
+    <li><strong>图生 3D：</strong>用 <code>.playtest/ai_gen.py</code> 调用 Hugging Face 上的 TRELLIS（ZeroGPU），输出带贴图的 GLB 到 <code>.playtest/ai_raw/</code>。每个模型约 1 分钟，排队时可能几分钟。免费额度有限，每次生成先预留 120 秒 GPU 时间，一天大约能做 2 到 3 个模型。这次首领模型就是等额度恢复（约 13 小时）后才生成的。</li>
+    <li><strong>定朝向和关节：</strong>用 Blender 无头渲染带 0.1 网格的正视图和侧视图（<code>ai_rig_preview.py</code>），先确认模型朝向（骨龙和魔王原本是背对镜头，需要转 180°），再按网格读出各关节坐标，写进 <code>.playtest/ai_rig_spec.json</code>。</li>
+    <li><strong>绑骨：</strong><code>ai_rig.py</code> 按规格建骨架，用热量法自动分配权重，再做几类修正：
+      <ul>
+        <li>武器等硬物按三维区域整体固定到手上，比如巫妖的剑、魔王的邪火、乌鸦领主的法杖；</li>
+        <li>可以额外加骨骼，比如魔王和骨龙的翅膀、骨龙的尾巴和前爪；</li>
+        <li>可以删除生成失败的碎片，比如先知手上那块没有贴图的悬浮水晶。</li>
+      </ul>
+    </li>
+    <li><strong>动画：</strong>为每个模型烘焙待机、行走、攻击、施法、受击、死亡、欢呼、眩晕 8 段动画。人形角色按近战、施法、弓箭三种风格生成攻击动作；骨龙用单独的一套四足动画。</li>
+    <li><strong>检查：</strong>用 <code>ai_pose_preview.py</code> 渲染每段动画的关键帧拼成对照表，检查有没有撕裂或拉伸。比如乌鸦领主的法杖底部和斗篷是连在一起的，第一次绑骨时杖一动就把斗篷拉出一大片，把法杖的固定区域缩小后就正常了。</li>
+    <li><strong>接入游戏：</strong>导出到 <code>public/models/ai/</code>，加进 <code>manifest.json</code>，再用自动化测试进游戏截图确认。</li>
+  </ol>
+  <div class="shots">
+    <figure><img src="proc_ref.png" alt="参考图" /><figcaption>第 1 步：参考图</figcaption></figure>
+    <figure><img src="proc_raw.png" alt="网格预览" /><figcaption>第 3 步：TRELLIS 输出的网格和定位网格</figcaption></figure>
+    <figure><img src="proc_sheet.png" alt="动画对照表" /><figcaption>第 6 步：8 段动画的关键帧（每行两段，各 3 帧）</figcaption></figure>
+    <figure><img src="boss_fight.png" alt="游戏内" /><figcaption>第 7 步：游戏内效果</figcaption></figure>
+  </div>
+  <div class="shots">
+    <figure><img src="proc_ref_prophet.png" alt="先知参考图" /><figcaption>德莱尼先知参考图</figcaption></figure>
+    <figure><img src="proc_ref_raven.png" alt="乌鸦参考图" /><figcaption>乌鸦领主参考图</figcaption></figure>
+  </div>
+
+  <h2>测试</h2>
+  <p>所有测试都是 <code>.playtest/</code> 下的 puppeteer 脚本，在无头 Chrome 里跑真实游戏，这次逐个运行，全部通过：</p>
+  <table>
+    <tr><th>脚本</th><th>覆盖内容</th></tr>
+    <tr><td><code>playtest.mjs</code></td><td>设置面板切换模型、天赋加点与重置、卡组编辑保存、第 1/5/10/15 波开局、出牌、回合结算，3D 模型无泄漏、无报错</td></tr>
+    <tr><td><code>features.mjs</code></td><td>暴击、三种元素反应、羁绊与遗物显示、大招过场、首领预警与拖动躲避、狂暴化、巨龙空袭、路线地图与商店</td></tr>
+    <tr><td><code>finale.mjs</code></td><td>最后一击：慢动作、镜头聚焦、恢复视角、胜利横幅</td></tr>
+    <tr><td><code>orbit.mjs</code></td><td>旋转镜头、转动后点击单位、双击复位、滚轮缩放</td></tr>
+    <tr><td><code>route_screens.mjs</code></td><td>营火、商店、四种奇遇、遗物选择界面</td></tr>
+    <tr><td><code>bosses.mjs</code></td><td>三个首领的 AI 模型加载、待机、攻击、施法</td></tr>
+    <tr><td><code>oracle.mjs</code></td><td>先知开场、首领预言、乌鸦领主嘲讽、套装模式下的立绘兜底，来客离开后正常开始回合</td></tr>
+  </table>
+  <p>这次顺手修了两处过时的测试：卡组测试原来写死初始卡组是 10 张（现在是 14 张），设置测试在 AI 模型还没加载完时就点了切回。几项和时间相关的检查（大招慢动作、胜利横幅）在多个浏览器并行跑时会因为帧率下降偶尔失败，单独运行都正常。</p>
+
   <h3>相关代码</h3>
   <ul>
+    <li><code>src/oracle.ts</code>：路边来客的台词和出现规则。</li>
     <li><code>src/run.ts</code>：大招、元素反应、羁绊、遗物、首领预警、路线的数据，调数值主要改这里。</li>
     <li><code>src/scenes/route.ts</code>：路线、商店、营火、奇遇、遗物选择界面。</li>
     <li><code>src/scenes/BattleScene.ts</code>：战斗逻辑，包括伤害、暴击、反应、大招过场、首领预警、狂暴化、巨龙空袭。</li>

@@ -43,6 +43,7 @@ import { CardView, UnitView, tweenP, txt, wait } from '../ui';
 import { Background, addBackground } from '../three/battlefield';
 import { enableOrbit, endFocus, focusOn, homeOrbit, isAway, isOrbiting, orbitBy, releaseOrbit, setTimeScale, zoomBy } from '../three/view';
 import { addPoints, getDeck, rank, runPoints, talentPoints } from '../meta';
+import { ORACLES, OracleDef, OracleKey, oracleFor } from '../oracle';
 
 /** Flat stat bonuses from the unit-branch talents. */
 function unitTalentBonus(key: string) {
@@ -170,6 +171,8 @@ export class BattleScene extends Phaser.Scene {
   private gold = 0;
   private relics: string[] = [];
   private nodeKind: RouteKind = 'fight';
+  /** Wave of the last roadside visit, so chance visits stay occasional. */
+  private lastOracle = -99;
   private killEnergyUsed = false;
   /** Cards and ultimates can still be played this turn (energy refunds matter). */
   private playerPhase = false;
@@ -217,6 +220,7 @@ export class BattleScene extends Phaser.Scene {
     this.fading = [];
     this.finale = null;
     this.extras = [];
+    this.lastOracle = -99;
     this.decals = [];
     this.marks = null;
     this.pending = [];
@@ -714,7 +718,82 @@ export class BattleScene extends Phaser.Scene {
     } else {
       await wait(this, 400);
     }
+    const visit = oracleFor(this.wave, this.lastOracle, elite);
+    if (visit && !this.over) {
+      this.lastOracle = this.wave;
+      await this.oracle(visit.who, visit.lines);
+    }
     this.startPlayerTurn();
+  }
+
+  // ---------------------------------------------------------------- roadside visitors
+
+  /** A figure steps out at the roadside, says its piece in a speech bubble, then vanishes. Tap to hurry it. */
+  private async oracle(who: OracleKey, lines: string[]) {
+    const o = ORACLES[who];
+    const left = o.side === 'left';
+    const x = left ? 64 : 476;
+    const y = 425;
+    const view = new UnitView(this, x, y + 20, o.art, false, false).bare();
+    view.setFacing(left ? 0.6 : -0.6).setScale(1.15).setDepth(30).setAlpha(0);
+    this.extras.push(view);
+    this.burst(x, y, o.color, 22);
+    await tweenP(this, { targets: view, alpha: 1, y, duration: 420, ease: 'Cubic.out' });
+    void view.act('cast');
+    for (const line of lines) await this.speak(o, left, line);
+    void view.act('cheer');
+    this.burst(x, y - 30, o.color, 26);
+    await tweenP(this, { targets: view, alpha: 0, y: y - 40, duration: 480, ease: 'Cubic.in' });
+    this.extras = this.extras.filter((v) => v !== view);
+    view.destroy();
+  }
+
+  private speak(o: OracleDef, left: boolean, line: string) {
+    const w = 330;
+    const cx = left ? 118 + w / 2 : 422 - w / 2;
+    const cy = 425;
+    const body = txt(this, -w / 2 + 16, -12, '', 16, '#f3e3c0', 3).setOrigin(0, 0).setWordWrapWidth(w - 32, true);
+    body.setText(line);
+    const h = Math.max(78, body.height + 46);
+    body.setText('');
+    const panel = this.add.graphics();
+    panel.fillStyle(0x1a120c, 0.92).fillRoundedRect(-w / 2, -h / 2, w, h, 14);
+    panel.lineStyle(3, o.color, 1).strokeRoundedRect(-w / 2, -h / 2, w, h, 14);
+    const tx = left ? -w / 2 : w / 2;
+    const dir = left ? -1 : 1;
+    panel.fillStyle(0x1a120c, 0.92).fillTriangle(tx, -10, tx, 10, tx + dir * 16, 0);
+    panel.lineStyle(3, o.color, 1).lineBetween(tx, -10, tx + dir * 16, 0).lineBetween(tx + dir * 16, 0, tx, 10);
+    const name = txt(this, -w / 2 + 16, -h / 2 + 16, o.name, 15, o.nameColor, 4).setOrigin(0, 0.5);
+    body.setY(-h / 2 + 32);
+    const bubble = this.add.container(cx, cy, [panel, name, body]).setDepth(52).setAlpha(0).setScale(0.9);
+    this.tweens.add({ targets: bubble, alpha: 1, scale: 1, duration: 200, ease: 'Back.out' });
+
+    return new Promise<void>((resolve) => {
+      let shown = 0;
+      let done = false;
+      const typer = this.time.addEvent({
+        delay: 30,
+        repeat: line.length - 1,
+        callback: () => body.setText(line.slice(0, ++shown)),
+      });
+      const finish = () => {
+        if (done) return;
+        done = true;
+        typer.remove();
+        hold.remove();
+        this.input.off('pointerdown', skip);
+        this.tweens.add({ targets: bubble, alpha: 0, duration: 180, onComplete: () => bubble.destroy() });
+        resolve();
+      };
+      const hold = this.time.delayedCall(line.length * 30 + 1600 + line.length * 35, finish);
+      const skip = () => {
+        if (shown >= line.length) return finish();
+        typer.remove();
+        shown = line.length;
+        body.setText(line);
+      };
+      this.input.on('pointerdown', skip);
+    });
   }
 
   private spawnEnemy(key: string, slot: number, cycle = 0, elite = false) {
