@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import * as THREE from 'three';
 import { add, cyl, toon } from './parts';
 import { getTimeScale, getView } from './view';
+import type { Theme } from '../data';
 
 /**
  * Stylized 3D forest road rendered into its own canvas and registered as a Phaser
@@ -28,12 +29,36 @@ const FOG_NEAR = 36;
 const FOG_FAR = 66;
 
 export type Mood = 'day' | 'boss' | 'elite' | 'rage';
+export type { Theme };
 
-const MOODS: Record<Mood, { fog: number; sky: number; ground: number; sun: number; sunI: number; hemiI: number }> = {
-  day: { fog: 0x7d8458, sky: 0xfff1d6, ground: 0x4a5a2a, sun: 0xffe2b0, sunI: 2.3, hemiI: 1.5 },
-  boss: { fog: 0x3b2440, sky: 0xc8a0ff, ground: 0x3a2030, sun: 0xff9a7a, sunI: 1.5, hemiI: 1.0 },
-  elite: { fog: 0x8a5a3a, sky: 0xffc89a, ground: 0x4a3a20, sun: 0xff9a4a, sunI: 2.0, hemiI: 1.2 },
-  rage: { fog: 0x4a1210, sky: 0xff8a6a, ground: 0x3a1010, sun: 0xff4a2a, sunI: 1.9, hemiI: 0.9 },
+interface MoodDef {
+  fog: number;
+  sky: number;
+  ground: number;
+  sun: number;
+  sunI: number;
+  hemiI: number;
+}
+
+const MOODS: Record<Theme, Record<Mood, MoodDef>> = {
+  forest: {
+    day: { fog: 0x7d8458, sky: 0xfff1d6, ground: 0x4a5a2a, sun: 0xffe2b0, sunI: 2.3, hemiI: 1.5 },
+    boss: { fog: 0x3b2440, sky: 0xc8a0ff, ground: 0x3a2030, sun: 0xff9a7a, sunI: 1.5, hemiI: 1.0 },
+    elite: { fog: 0x8a5a3a, sky: 0xffc89a, ground: 0x4a3a20, sun: 0xff9a4a, sunI: 2.0, hemiI: 1.2 },
+    rage: { fog: 0x4a1210, sky: 0xff8a6a, ground: 0x3a1010, sun: 0xff4a2a, sunI: 1.9, hemiI: 0.9 },
+  },
+  molten: {
+    day: { fog: 0x4a2216, sky: 0xffc59a, ground: 0x5a2010, sun: 0xffa060, sunI: 2.0, hemiI: 1.3 },
+    boss: { fog: 0x2e0c08, sky: 0xff8a50, ground: 0x4a1008, sun: 0xff6a2a, sunI: 1.7, hemiI: 1.0 },
+    elite: { fog: 0x5a2a10, sky: 0xffb070, ground: 0x4a2008, sun: 0xff8a3a, sunI: 1.9, hemiI: 1.1 },
+    rage: { fog: 0x3a0806, sky: 0xff6a4a, ground: 0x3a0808, sun: 0xff3a1a, sunI: 1.9, hemiI: 0.9 },
+  },
+  temple: {
+    day: { fog: 0xc0a06a, sky: 0xfff0cc, ground: 0x8a6a3a, sun: 0xffe0a0, sunI: 2.4, hemiI: 1.5 },
+    boss: { fog: 0x3a2448, sky: 0xd0a0ff, ground: 0x4a3040, sun: 0xffb080, sunI: 1.6, hemiI: 1.0 },
+    elite: { fog: 0xa0703a, sky: 0xffd09a, ground: 0x6a4a28, sun: 0xffa050, sunI: 2.1, hemiI: 1.2 },
+    rage: { fog: 0x4a1a20, sky: 0xff9a7a, ground: 0x3a1418, sun: 0xff5a3a, sunI: 1.9, hemiI: 0.9 },
+  },
 };
 
 function rng(seed: number) {
@@ -68,7 +93,61 @@ function periodicNoise(seed: number, cellsX: number, cellsY: number) {
 /** Road half-width along the segment (v: 0..1), periodic so segments join. */
 const roadEdge = (v: number) => ROAD + 0.45 * Math.sin(v * Math.PI * 4) + 0.3 * Math.sin(v * Math.PI * 6 + 1.3);
 
-function groundTexture() {
+type RGB = [number, number, number];
+
+/** Per-theme ground palette: road colour, off-road colour, and (molten) lava glow, from noise at a texel. */
+interface GroundPaint {
+  road(n: number, f: number, px: number, py: number): RGB;
+  off(n: number, f: number, px: number, py: number): RGB;
+  /** 0..1 lava/crystal glow off the road; drawn into the emissive map. */
+  glow?(n: number, c: number): number;
+  speck: [string, string];
+}
+
+const TILE = 64;
+
+const GROUND: Record<Theme, GroundPaint> = {
+  forest: {
+    road: (n, f) => [150 + 40 * (n - 0.5) + 30 * (f - 0.5), 112 + 30 * (n - 0.5) + 22 * (f - 0.5), 70 + 18 * (f - 0.5)],
+    off: (n, f) => {
+      const g = 0.75 + 0.5 * n;
+      return [70 * g + 18 * (f - 0.5), 96 * g + 26 * (f - 0.5), 42 * g + 10 * (f - 0.5)];
+    },
+    speck: ['90,68,44', '40,62,24'],
+  },
+  molten: {
+    road: (n, f) => [74 + 30 * (n - 0.5) + 24 * (f - 0.5), 60 + 22 * (n - 0.5) + 18 * (f - 0.5), 56 + 16 * (f - 0.5)],
+    off: (n, f) => [38 + 26 * n + 10 * (f - 0.5), 26 + 14 * n, 24 + 10 * n],
+    glow: (n, c) => Math.max(c, Math.min(1, Math.max(0, (n - 0.72) / 0.08))),
+    speck: ['30,24,24', '20,14,14'],
+  },
+  temple: {
+    road: (n, f, px, py) => {
+      const row = Math.floor(py / TILE);
+      const gx = (px + (row % 2) * (TILE / 2)) % TILE;
+      const grout = gx < 3 || py % TILE < 3 ? 0.72 : 1;
+      const k = (0.92 + 0.16 * n + 0.08 * (f - 0.5)) * grout;
+      return [200 * k, 166 * k, 116 * k];
+    },
+    off: (n, f, _px, py) => {
+      const ripple = 10 * Math.sin(py * 0.09 + n * 14);
+      return [212 + 26 * (n - 0.5) + ripple, 174 + 20 * (n - 0.5) + ripple * 0.8, 110 + 14 * (f - 0.5) + ripple * 0.5];
+    },
+    speck: ['120,92,60', '150,116,70'],
+  },
+};
+
+function canvasTex(canvas: HTMLCanvasElement, srgb = true) {
+  const tex = new THREE.CanvasTexture(canvas);
+  if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(1, 3);
+  tex.anisotropy = 4;
+  return tex;
+}
+
+function groundMaterial(theme: Theme) {
+  const paint = GROUND[theme];
   const tw = 512;
   const th = 1024;
   const canvas = document.createElement('canvas');
@@ -76,8 +155,11 @@ function groundTexture() {
   canvas.height = th;
   const ctx = canvas.getContext('2d')!;
   const img = ctx.createImageData(tw, th);
+  const glowCanvas = paint.glow ? document.createElement('canvas') : null;
+  const glowImg = glowCanvas ? ((glowCanvas.width = tw), (glowCanvas.height = th), glowCanvas.getContext('2d')!.createImageData(tw, th)) : null;
   const coarse = periodicNoise(1, 12, 20);
   const fine = periodicNoise(2, 48, 80);
+  const veins = periodicNoise(4, 20, 34);
   const r = rng(3);
   for (let py = 0; py < th; py++) {
     const v = py / th;
@@ -88,34 +170,43 @@ function groundTexture() {
       const n = coarse(u, v);
       const f = fine(u, v);
       const d = Math.abs(x) - edge + (n - 0.5) * 1.6;
-      const grass = Math.min(1, Math.max(0, (d + 0.5) / 1.0));
-      const dirt = [150 + 40 * (n - 0.5) + 30 * (f - 0.5), 112 + 30 * (n - 0.5) + 22 * (f - 0.5), 70 + 18 * (f - 0.5)];
-      const g = 0.75 + 0.5 * n;
-      const gr = [70 * g + 18 * (f - 0.5), 96 * g + 26 * (f - 0.5), 42 * g + 10 * (f - 0.5)];
+      const off = Math.min(1, Math.max(0, (d + 0.5) / 1.0));
+      const a = paint.road(n, f, px, py);
+      let b = paint.off(n, f, px, py);
       const i = (py * tw + px) * 4;
-      img.data[i] = dirt[0] + (gr[0] - dirt[0]) * grass;
-      img.data[i + 1] = dirt[1] + (gr[1] - dirt[1]) * grass;
-      img.data[i + 2] = dirt[2] + (gr[2] - dirt[2]) * grass;
+      if (glowImg && paint.glow) {
+        const crack = 1 - Math.min(1, Math.abs(veins(u, v) - 0.5) / 0.03);
+        const gl = paint.glow(n, crack) * Math.min(1, Math.max(0, d - 0.6));
+        b = [b[0] + (255 - b[0]) * gl, b[1] + (120 - b[1]) * gl, b[2] + (24 - b[2]) * gl];
+        glowImg.data[i] = 255 * gl;
+        glowImg.data[i + 1] = 110 * gl;
+        glowImg.data[i + 2] = 20 * gl;
+        glowImg.data[i + 3] = 255;
+      }
+      img.data[i] = a[0] + (b[0] - a[0]) * off;
+      img.data[i + 1] = a[1] + (b[1] - a[1]) * off;
+      img.data[i + 2] = a[2] + (b[2] - a[2]) * off;
       img.data[i + 3] = 255;
     }
   }
   ctx.putImageData(img, 0, 0);
-  // pebbles on the road, darker tufts in the grass
+  // pebbles on the road, darker tufts off it
   for (let k = 0; k < 900; k++) {
     const px = r() * tw;
     const py = r() * th;
     const x = (px / tw - 0.5) * GROUND_W;
     const onRoad = Math.abs(x) < roadEdge(py / th) - 0.3;
-    ctx.fillStyle = onRoad ? `rgba(90,68,44,${0.35 + r() * 0.4})` : `rgba(40,62,24,${0.3 + r() * 0.4})`;
+    ctx.fillStyle = `rgba(${paint.speck[onRoad ? 0 : 1]},${(onRoad ? 0.35 : 0.3) + r() * 0.4})`;
     const s = onRoad ? 1 + r() * 2.5 : 1.5 + r() * 3;
     for (const dy of [-th, 0, th]) ctx.fillRect(px, py + dy, s, s * (onRoad ? 1 : 2));
   }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(1, 3);
-  tex.anisotropy = 4;
-  return tex;
+  const mat = new THREE.MeshLambertMaterial({ map: canvasTex(canvas) });
+  if (glowCanvas && glowImg) {
+    glowCanvas.getContext('2d')!.putImageData(glowImg, 0, 0);
+    mat.emissiveMap = canvasTex(glowCanvas);
+    mat.emissive = new THREE.Color(0xffffff);
+  }
+  return mat;
 }
 
 const M = {
@@ -187,9 +278,47 @@ interface Fire {
   seed: number;
 }
 
-const FLAME_OUT = new THREE.MeshBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0.9 });
-const FLAME_IN = new THREE.MeshBasicMaterial({ color: 0xffe07a });
-const EMBER = new THREE.PointsMaterial({ color: 0xffa040, size: 0.12, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
+interface FlameKind {
+  out: THREE.Material;
+  core: THREE.Material;
+  ember: THREE.PointsMaterial;
+  light: number;
+}
+
+const ember = (color: number) =>
+  new THREE.PointsMaterial({ color, size: 0.12, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
+
+const FLAMES: Record<'orange' | 'purple', FlameKind> = {
+  orange: {
+    out: new THREE.MeshBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0.9 }),
+    core: new THREE.MeshBasicMaterial({ color: 0xffe07a }),
+    ember: ember(0xffa040),
+    light: 0xff8a30,
+  },
+  purple: {
+    out: new THREE.MeshBasicMaterial({ color: 0xa050ff, transparent: true, opacity: 0.9 }),
+    core: new THREE.MeshBasicMaterial({ color: 0xf0d0ff }),
+    ember: ember(0xc080ff),
+    light: 0xb070ff,
+  },
+};
+
+/** Flickering flame + light + rising embers at height `y` of `g`; animated in Battlefield.render(). */
+function addFlame(g: THREE.Group, fires: Fire[], kind: FlameKind, y = 0) {
+  const flame = new THREE.Group();
+  add(flame, new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.8, 7), kind.out), 0, 0.4, 0);
+  add(flame, new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.5, 6), kind.core), 0, 0.3, 0);
+  flame.position.y = y;
+  g.add(flame);
+  const light = add(g, new THREE.PointLight(kind.light, 6, 6, 1.6), 0, y + 0.9, 0);
+  const n = 18;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+  const embers = new THREE.Points(geo, kind.ember);
+  embers.position.y = y;
+  g.add(embers);
+  fires.push({ flame, light, embers, seed: Math.random() * 10 });
+}
 
 function campfire(fires: Fire[]) {
   const g = new THREE.Group();
@@ -202,17 +331,7 @@ function campfire(fires: Fire[]) {
     const log = add(g, cyl(0.07, 0.07, 0.8, M.woodDark, 6), 0, 0.12, 0);
     log.rotation.set(Math.PI / 2, 0, (i / 3) * Math.PI);
   });
-  const flame = new THREE.Group();
-  add(flame, new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.8, 7), FLAME_OUT), 0, 0.4, 0);
-  add(flame, new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.5, 6), FLAME_IN), 0, 0.3, 0);
-  g.add(flame);
-  const light = add(g, new THREE.PointLight(0xff8a30, 6, 6, 1.6), 0, 0.9, 0);
-  const n = 18;
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
-  const embers = new THREE.Points(geo, EMBER);
-  g.add(embers);
-  fires.push({ flame, light, embers, seed: Math.random() * 10 });
+  addFlame(g, fires, FLAMES.orange);
   return g;
 }
 
@@ -231,8 +350,173 @@ function banner(color: THREE.Material, cloths: THREE.Mesh[]) {
   return shadowed(g);
 }
 
+// ---- Molten Core props
+
+const MC = {
+  basalt: toon(0x2e2628),
+  basalt2: toon(0x403436),
+  obsidian: toon(0x1e1822),
+  ember: toon(0xff6a1a, 1.2),
+  lava: new THREE.MeshBasicMaterial({ color: 0xff5a10 }),
+  lavaHot: new THREE.MeshBasicMaterial({ color: 0xffc040 }),
+  red: toon(0x6a1410),
+  orange: toon(0xc0501a),
+};
+
+function spire(r: () => number) {
+  const g = new THREE.Group();
+  const h = 2.2 + r() * 3;
+  add(g, new THREE.Mesh(new THREE.ConeGeometry(0.6 + r() * 0.5, h, 6), r() < 0.5 ? MC.basalt : MC.basalt2), 0, h / 2, 0);
+  for (let i = 0; i < 2; i++) {
+    const s = 0.8 + r() * 1.2;
+    const a = r() * Math.PI * 2;
+    add(g, new THREE.Mesh(new THREE.ConeGeometry(0.3 + r() * 0.2, s, 5), MC.basalt), Math.cos(a) * 0.6, s / 2, Math.sin(a) * 0.6);
+  }
+  // a glowing seam near the base
+  add(g, cyl(0.62, 0.66, 0.08, MC.ember, 6), 0, 0.25 + r() * 0.4, 0);
+  g.rotation.y = r() * Math.PI;
+  return shadowed(g);
+}
+
+function obsidianRock(r: () => number) {
+  const m = new THREE.Mesh(new THREE.DodecahedronGeometry(0.4 + r() * 0.45, 0), r() < 0.5 ? MC.obsidian : MC.basalt2);
+  m.scale.set(1, 0.55 + r() * 0.4, 0.8 + r() * 0.4);
+  m.rotation.set(r(), r() * 3, r());
+  m.position.y = 0.1;
+  return shadowed(m);
+}
+
+function lavaPool(r: () => number) {
+  const g = new THREE.Group();
+  const s = 0.5 + r() * 0.35;
+  const pool = add(g, new THREE.Mesh(new THREE.CircleGeometry(s, 14), MC.lava), 0, 0.03, 0);
+  pool.rotation.x = -Math.PI / 2;
+  const hot = add(g, new THREE.Mesh(new THREE.CircleGeometry(s * 0.45, 10), MC.lavaHot), 0.1, 0.04, -0.05);
+  hot.rotation.x = -Math.PI / 2;
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2;
+    const st = add(g, new THREE.Mesh(new THREE.DodecahedronGeometry(0.14 + r() * 0.08, 0), MC.basalt), Math.cos(a) * s, 0.06, Math.sin(a) * s);
+    st.castShadow = true;
+  }
+  return g;
+}
+
+function brazier(fires: Fire[], stone: THREE.Material, kind: FlameKind) {
+  const g = new THREE.Group();
+  add(g, cyl(0.3, 0.4, 0.2, stone, 8), 0, 0.1, 0);
+  add(g, cyl(0.22, 0.28, 0.9, stone, 8), 0, 0.65, 0);
+  add(g, cyl(0.5, 0.26, 0.3, stone, 10), 0, 1.25, 0);
+  addFlame(g, fires, kind, 1.3);
+  return shadowed(g);
+}
+
+function shardCluster(r: () => number) {
+  const g = new THREE.Group();
+  for (let i = 0; i < 5; i++) {
+    const h = 0.8 + r() * 1.4;
+    const shard = add(g, new THREE.Mesh(new THREE.ConeGeometry(0.18 + r() * 0.12, h, 4), r() < 0.3 ? MC.ember : MC.obsidian), (i - 2) * 0.4, h / 2 - 0.1, (r() - 0.5) * 0.4);
+    shard.rotation.set((r() - 0.5) * 0.6, r() * 3, (r() - 0.5) * 0.6);
+  }
+  return shadowed(g);
+}
+
+// ---- Ahn'Qiraj props
+
+const AQ = {
+  stone: toon(0xc9a46a),
+  stoneDark: toon(0x9a7a4c),
+  sand: toon(0xd8b478),
+  crystal: new THREE.MeshBasicMaterial({ color: 0xa860ff, transparent: true, opacity: 0.9 }),
+  crystalCore: new THREE.MeshBasicMaterial({ color: 0xf0d8ff }),
+  purple: toon(0x5a2a8a),
+  gold: M.gold,
+};
+
+function pillar(r: () => number) {
+  const g = new THREE.Group();
+  if (r() < 0.35) {
+    // sand dune between the ruins
+    const dune = add(g, new THREE.Mesh(new THREE.SphereGeometry(1.4 + r() * 0.8, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), AQ.sand), 0, 0, 0);
+    dune.scale.y = 0.35 + r() * 0.2;
+    return shadowed(g);
+  }
+  const broken = r() < 0.4;
+  const h = broken ? 1 + r() * 1.2 : 3 + r() * 2;
+  add(g, new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.3, 1.1), AQ.stoneDark), 0, 0.15, 0);
+  add(g, cyl(0.38, 0.44, h, AQ.stone, 10), 0, 0.3 + h / 2, 0);
+  if (broken) {
+    const drum = add(g, cyl(0.38, 0.38, 0.7, AQ.stone, 10), 0.9, 0.3, 0.3);
+    drum.rotation.z = Math.PI / 2;
+  } else {
+    add(g, new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.35, 1.0), AQ.stoneDark), 0, 0.3 + h + 0.17, 0);
+    add(g, new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.25, 0.7), AQ.purple), 0, 0.3 + h + 0.45, 0);
+  }
+  g.rotation.y = r() * Math.PI;
+  return shadowed(g);
+}
+
+function sandBlock(r: () => number) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.7 + r() * 0.5, 0.4 + r() * 0.4, 0.6 + r() * 0.5), r() < 0.5 ? AQ.stone : AQ.stoneDark);
+  m.rotation.set((r() - 0.5) * 0.3, r() * 3, (r() - 0.5) * 0.3);
+  m.position.y = 0.2;
+  return shadowed(m);
+}
+
+function crystals(r: () => number) {
+  const g = new THREE.Group();
+  for (let i = 0; i < 4; i++) {
+    const h = 0.5 + r() * 0.9;
+    const c = add(g, new THREE.Mesh(new THREE.OctahedronGeometry(0.2 + r() * 0.1, 0), i === 0 ? AQ.crystalCore : AQ.crystal), (r() - 0.5) * 0.6, h / 2, (r() - 0.5) * 0.6);
+    c.scale.y = h / 0.4;
+    c.rotation.set((r() - 0.5) * 0.5, r() * 3, (r() - 0.5) * 0.5);
+  }
+  add(g, new THREE.Mesh(new THREE.DodecahedronGeometry(0.3, 0), AQ.stoneDark), 0, 0.1, 0).scale.y = 0.5;
+  return g;
+}
+
+function ruinedArch(r: () => number) {
+  const g = new THREE.Group();
+  for (const x of [-0.9, 0.9]) add(g, new THREE.Mesh(new THREE.BoxGeometry(0.45, 2 + r() * 0.3, 0.45), AQ.stone), x, 1, 0);
+  const lintel = add(g, new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.35, 0.55), AQ.stoneDark), 0, 2.1, 0);
+  lintel.rotation.z = (r() - 0.5) * 0.15;
+  return shadowed(g);
+}
+
+/** The prop kit a theme dresses each placement slot with; the layout itself is shared. */
+interface Kit {
+  fire(fires: Fire[]): THREE.Object3D;
+  wall(r: () => number): THREE.Object3D;
+  banners: [THREE.Material, THREE.Material];
+  small(r: () => number): THREE.Object3D;
+  rock(r: () => number): THREE.Object3D;
+  tall(r: () => number): THREE.Object3D;
+  mote: number;
+}
+
+const KITS: Record<Theme, Kit> = {
+  forest: { fire: campfire, wall: barricade, banners: [M.red, M.blue], small: barrel, rock, tall: pine, mote: 0xfff0b0 },
+  molten: {
+    fire: (f) => brazier(f, MC.basalt2, FLAMES.orange),
+    wall: shardCluster,
+    banners: [MC.red, MC.orange],
+    small: lavaPool,
+    rock: obsidianRock,
+    tall: spire,
+    mote: 0xff8a3a,
+  },
+  temple: {
+    fire: (f) => brazier(f, AQ.stoneDark, FLAMES.purple),
+    wall: ruinedArch,
+    banners: [AQ.purple, AQ.gold],
+    small: crystals,
+    rock: sandBlock,
+    tall: pillar,
+    mote: 0xe8d0a0,
+  },
+};
+
 /** One road segment of props; local z spans [-L/2, L/2]. Same seed → identical copies that tile. */
-function buildSegment(fires: Fire[], cloths: THREE.Mesh[]) {
+function buildSegment(kit: Kit, fires: Fire[], cloths: THREE.Mesh[]) {
   const r = rng(7);
   const seg = new THREE.Group();
   const taken: { x: number; z: number; rad: number }[] = [];
@@ -252,19 +536,19 @@ function buildSegment(fires: Fire[], cloths: THREE.Mesh[]) {
     return null;
   };
   // set pieces first so they get the spots right by the road
-  place(campfire(fires), -1, 4.6, 5.4, 0.9);
-  place(campfire(fires), 1, 4.6, 5.4, 0.9);
-  place(barricade(r), -1, 4.8, 5.6, 1.4)?.rotateY(0.3);
-  place(barricade(r), 1, 4.8, 5.6, 1.4)?.rotateY(-0.3);
-  place(banner(M.red, cloths), -1, 4.4, 4.9, 0.8);
-  place(banner(M.blue, cloths), 1, 4.4, 4.9, 0.8);
+  place(kit.fire(fires), -1, 4.6, 5.4, 0.9);
+  place(kit.fire(fires), 1, 4.6, 5.4, 0.9);
+  place(kit.wall(r), -1, 4.8, 5.6, 1.4)?.rotateY(0.3);
+  place(kit.wall(r), 1, 4.8, 5.6, 1.4)?.rotateY(-0.3);
+  place(banner(kit.banners[0], cloths), -1, 4.4, 4.9, 0.8);
+  place(banner(kit.banners[1], cloths), 1, 4.4, 4.9, 0.8);
   for (const side of [-1, 1]) {
     for (let i = 0; i < 3; i++) {
-      const b = place(barrel(), side, 4.3, 6, 0.45);
-      if (b && r() < 0.5) place(barrel(), side, 4.3, 6.5, 0.45);
+      const b = place(kit.small(r), side, 4.3, 6, 0.45);
+      if (b && r() < 0.5) place(kit.small(r), side, 4.3, 6.5, 0.45);
     }
-    for (let i = 0; i < 7; i++) place(rock(r), side, 4.0, 10, 0.6);
-    for (let i = 0; i < 14; i++) place(pine(r), side, 5.6, 13, 1.1, 20);
+    for (let i = 0; i < 7; i++) place(kit.rock(r), side, 4.0, 10, 0.6);
+    for (let i = 0; i < 14; i++) place(kit.tall(r), side, 5.6, 13, 1.1, 20);
   }
   return seg;
 }
@@ -289,7 +573,11 @@ class Battlefield {
   private time = 0;
   private game?: Phaser.Game;
   private users = 0;
-  private mood = { from: MOODS.day, to: MOODS.day, t: 1 };
+  private theme: Theme = 'forest';
+  private grounds = new Map<Theme, THREE.MeshLambertMaterial>();
+  private groundMat?: THREE.MeshLambertMaterial;
+  private moodKey: Mood = 'day';
+  private mood = { from: MOODS.forest.day, to: MOODS.forest.day, t: 1 };
   /** Scroll position in 2D pixels (same unit as the old tileSprite offset). */
   scroll = 0;
 
@@ -301,17 +589,18 @@ class Battlefield {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    this.fog = new THREE.Fog(MOODS.day.fog, FOG_NEAR, FOG_FAR);
+    const day = MOODS.forest.day;
+    this.fog = new THREE.Fog(day.fog, FOG_NEAR, FOG_FAR);
     this.scene.fog = this.fog;
-    this.scene.background = new THREE.Color(MOODS.day.fog);
+    this.scene.background = new THREE.Color(day.fog);
     this.home.position.copy(PIVOT).add(CAM_OFFSET);
     this.home.lookAt(PIVOT);
     this.home.updateMatrixWorld();
     this.placeCamera();
 
-    this.hemi = new THREE.HemisphereLight(MOODS.day.sky, MOODS.day.ground, MOODS.day.hemiI);
+    this.hemi = new THREE.HemisphereLight(day.sky, day.ground, day.hemiI);
     this.scene.add(this.hemi);
-    this.sun = new THREE.DirectionalLight(MOODS.day.sun, MOODS.day.sunI);
+    this.sun = new THREE.DirectionalLight(day.sun, day.sunI);
     this.sun.position.set(-10, 20, 2);
     this.sun.target.position.set(0, 0, -8);
     this.sun.castShadow = true;
@@ -320,19 +609,9 @@ class Battlefield {
     this.sun.shadow.bias = -0.0015;
     this.scene.add(this.sun, this.sun.target);
 
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_W, L * 3), new THREE.MeshLambertMaterial({ map: groundTexture() }));
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.z = -L;
-    ground.receiveShadow = true;
-    this.world.add(ground);
-    for (let k = -2; k <= 0; k++) {
-      const seg = buildSegment(this.fires, this.cloths);
-      seg.position.z = k * L;
-      this.world.add(seg);
-    }
     this.scene.add(this.world);
 
-    // drifting pollen / fireflies in front of the camera, independent of scrolling
+    // drifting pollen / fireflies / embers / dust in front of the camera, independent of scrolling
     const n = 70;
     const pos = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) pos.set([(Math.random() - 0.5) * 16, 0.5 + Math.random() * 5, -26 + Math.random() * 30], i * 3);
@@ -343,6 +622,43 @@ class Battlefield {
       new THREE.PointsMaterial({ color: 0xfff0b0, size: 0.09, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }),
     );
     this.scene.add(this.motes);
+    this.buildWorld();
+  }
+
+  /** Ground and three tiled prop segments for the current theme; the old ones are disposed. */
+  private buildWorld() {
+    for (const c of [...this.world.children]) {
+      this.world.remove(c);
+      c.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+    }
+    this.fires = [];
+    this.cloths = [];
+    let mat = this.grounds.get(this.theme);
+    if (!mat) this.grounds.set(this.theme, (mat = groundMaterial(this.theme)));
+    this.groundMat = mat;
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_W, L * 3), mat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.z = -L;
+    ground.receiveShadow = true;
+    this.world.add(ground);
+    const kit = KITS[this.theme];
+    for (let k = -2; k <= 0; k++) {
+      const seg = buildSegment(kit, this.fires, this.cloths);
+      seg.position.z = k * L;
+      this.world.add(seg);
+    }
+    (this.motes.material as THREE.PointsMaterial).color.setHex(kit.mote);
+  }
+
+  getTheme() {
+    return this.theme;
+  }
+
+  setTheme(theme: Theme) {
+    if (theme === this.theme) return;
+    this.theme = theme;
+    this.buildWorld();
+    this.setMood(this.moodKey, true);
   }
 
   attach(game: Phaser.Game) {
@@ -362,7 +678,20 @@ class Battlefield {
   }
 
   setMood(m: Mood, instant = false) {
-    this.mood = { from: this.currentMood(), to: MOODS[m], t: instant ? 1 : 0 };
+    this.moodKey = m;
+    this.mood = { from: this.currentMood(), to: MOODS[this.theme][m], t: instant ? 1 : 0 };
+    if (instant) this.applyMood();
+  }
+
+  private applyMood() {
+    const m = this.currentMood();
+    this.fog.color.setHex(m.fog);
+    (this.scene.background as THREE.Color).setHex(m.fog);
+    this.hemi.color.setHex(m.sky);
+    this.hemi.groundColor.setHex(m.ground);
+    this.hemi.intensity = m.hemiI;
+    this.sun.color.setHex(m.sun);
+    this.sun.intensity = m.sunI;
   }
 
   private currentMood() {
@@ -423,15 +752,9 @@ class Battlefield {
 
     if (this.mood.t < 1) {
       this.mood.t = Math.min(1, this.mood.t + dt / 1.2);
-      const m = this.currentMood();
-      this.fog.color.setHex(m.fog);
-      (this.scene.background as THREE.Color).setHex(m.fog);
-      this.hemi.color.setHex(m.sky);
-      this.hemi.groundColor.setHex(m.ground);
-      this.hemi.intensity = m.hemiI;
-      this.sun.color.setHex(m.sun);
-      this.sun.intensity = m.sunI;
+      this.applyMood();
     }
+    if (this.groundMat?.emissiveMap) this.groundMat.emissiveIntensity = 0.85 + 0.3 * Math.sin(t * 1.8);
 
     this.world.position.z = (((-this.scroll * PX) % L) + L) % L;
 
@@ -487,6 +810,8 @@ export interface Background {
   /** Scroll in 2D pixels; decreasing values march forward. */
   setScroll(px: number): void;
   setMood(m: Mood): void;
+  /** Swap the scenery (ground, props, lighting set); returns false when already showing it. */
+  setTheme(t: Theme): boolean;
   /** False for the flat fallback road, which can't orbit. */
   orbitable: boolean;
   remap(x: number, y: number): { x: number; y: number; scale: number };
@@ -506,6 +831,11 @@ export function addBackground(scene: Phaser.Scene, mood: Mood = 'day'): Backgrou
     return {
       setScroll: (px) => (field.scroll = px),
       setMood: (m) => field.setMood(m),
+      setTheme: (t) => {
+        if (field.getTheme() === t) return false;
+        field.setTheme(t);
+        return true;
+      },
       orbitable: true,
       remap: (x, y) => {
         const p = field.remap((x / width) * W, (y / height) * H);
@@ -519,6 +849,7 @@ export function addBackground(scene: Phaser.Scene, mood: Mood = 'day'): Backgrou
   return {
     setScroll: (px) => (tile.tilePositionY = px),
     setMood: () => undefined,
+    setTheme: () => false,
     orbitable: false,
     remap: (x, y) => ({ x, y, scale: 1 }),
     groundOffset: () => ({ x: 0, z: 0 }),

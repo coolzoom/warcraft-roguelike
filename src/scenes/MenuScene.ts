@@ -21,6 +21,7 @@ export class MenuScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
     this.bg = addBackground(this);
+    this.bg.setTheme('forest');
     this.add.rectangle(0, 0, width, height, 0x000000, 0.45).setOrigin(0);
 
     const heroes = ['p_orc', 'p_mage', 'p_dwarf'];

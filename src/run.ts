@@ -88,6 +88,8 @@ export const TELEGRAPHS: Record<string, TelegraphDef> = {
   boss_dragon: { name: '冰霜吐息', color: 0x9fe3ff, element: 'ice', pattern: 'row' },
   boss_lich: { name: '冰柱坠落', color: 0x9fe3ff, element: 'ice', pattern: 2 },
   boss_demon: { name: '邪能陨石', color: 0x8aff4a, element: 'fire', pattern: 3 },
+  boss_rag: { name: '烈焰之浪', color: 0xff6a1a, element: 'fire', pattern: 'row' },
+  boss_cthun: { name: '触须钻地', color: 0xb070ff, element: 'arcane', pattern: 3 },
 };
 
 // ---------------------------------------------------------------- synergies

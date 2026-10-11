@@ -146,7 +146,8 @@
       </table>
     </li>
     <li><strong>一路往前打：</strong>清空一波后三选一奖励（新卡、修缮大本营、法术强化等），再从路线地图选下一站（见下方「肉鸽系统」）。英雄带着血量和星级跟进下一波。</li>
-    <li><strong>BOSS：</strong><span class="tag">每 5 波</span> 一个，依次是冰霜骨龙、霜冠巫妖、恐惧魔王，之后循环并逐轮变强。每个 BOSS 每隔几回合放一次大招（冰霜吐息、召唤亡灵加冰冻、邪能火雨），会先在地上标出预警圈，半血时狂暴化。击败后可以选「能量上限 +1」或「全体英雄升星」。</li>
+    <li><strong>BOSS：</strong><span class="tag">每 5 波</span> 一个，依次是冰霜骨龙、霜冠巫妖、恐惧魔王、炎魔之王拉格纳罗斯、上古之神克苏恩，之后循环并逐轮变强。每个 BOSS 每隔几回合放一次大招（冰霜吐息、召唤亡灵加冰冻、邪能火雨、熔岩爆发、疯狂低语），会先在地上标出预警圈，半血时狂暴化。击败后可以选「能量上限 +1」或「全体英雄升星」。</li>
+    <li><strong>场景：</strong>每 5 波是一章。前三章走林间大道，第 16 到 20 波进入熔火之心，第 21 到 25 波进入安其拉神殿，之后回到林间大道开始下一轮。</li>
     <li><strong>卡组：</strong>主菜单「🃏 卡组」里可以自己组起始卡组，10 到 16 张，每张卡按稀有度有份数上限。</li>
     <li><strong>天赋：</strong>每局结束按成绩获得天赋点（每清一波 1 点，每击败一个首领再加 2 点），在主菜单「⭐ 天赋」里投入，分大本营、能量、法术、兵种四系，比如城墙加固、能量之泉（能量上限 +1）、法术回响、先祖之魂（新英雄直接 2 星）。随时可以重置。</li>
     <li><strong>失败：</strong>大本营血量归零即结束，会记录最远到达的波次。</li>
@@ -156,12 +157,13 @@
   <div class="lead">
     <p>这一版加入了 3D 镜头操作、最后一击慢动作，以及九个新玩法：暴击、元素反应、英雄大招、首领预警与换位躲避、首领狂暴化、传说卡「巨龙空袭」、阵营羁绊、遗物和分支路线地图。</p>
     <p>之后又补齐了三个首领的 AI 模型，并新增两位路边来客：德莱尼先知和乌鸦领主。他们会在开场、首领战前后和随机时机出现，介绍剧情、预言下一个首领。</p>
+    <p>最新一次更新加入了两位新首领和两个新场景：第 20 波是熔火之心的炎魔之王拉格纳罗斯，第 25 波是安其拉神殿的上古之神克苏恩。进入新章节时画面会淡出，换成新场景并显示场景名（见下方「首领图鉴」和「场景」）。</p>
     <p>7 套自动化测试全部通过（见下方「测试」）。数值是第一版，需要实际玩几局再调。</p>
   </div>
 
   <h3>镜头与动作</h3>
   <ul>
-    <li><strong>AI 模型动作：</strong>15 个 AI 生成的 3D 模型（6 个英雄、4 种敌人、3 个首领、2 个路边来客）都绑定了骨骼，有待机、行走、攻击、施法、受击、欢呼、眩晕、死亡 8 套动作。制作过程见下方「3D 模型制作流程」。</li>
+    <li><strong>AI 模型动作：</strong>17 个 AI 生成的 3D 模型（6 个英雄、4 种敌人、5 个首领、2 个路边来客）都绑定了骨骼，有待机、行走、攻击、施法、受击、欢呼、眩晕、死亡 8 套动作。制作过程见下方「3D 模型制作流程」。</li>
     <li><strong>旋转镜头：</strong>在战场空地上拖动可以转动视角，松手后保持不变。双击空地或点右上角「⟲ 视角」回到默认视角。转动后点击单位、技能特效都按实际画面位置计算。</li>
     <li><strong>滚轮缩放：</strong>在战场上滚动鼠标滚轮可以拉近或拉远，手牌区域滚动不会缩放。</li>
     <li><strong>最后一击慢动作：</strong>每波最后一个敌人倒下时，画面闪白，上下出现黑边，弹出「最后一击！」，镜头推到敌人身上慢放约 1.5 秒，然后回到你原来的视角，再出胜利横幅。</li>
@@ -205,7 +207,7 @@
 
   <h3>首领战</h3>
   <ul>
-    <li><strong>地面预警：</strong>首领每 3 回合会先在英雄脚下标出红色预警圈，下回合再轰击（攻击的 2.2 倍，冰系附带冰冻，火系附带灼烧）。在你的回合里，<strong>拖动英雄</strong>到别的位置就能躲开，全部躲开会显示「完美闪避！」。冰霜骨龙轰击一整排，巫妖砸 2 个位置，恐惧魔王砸 3 个位置。</li>
+    <li><strong>地面预警：</strong>首领每 3 回合会先在英雄脚下标出红色预警圈，下回合再轰击（攻击的 2.2 倍，冰系附带冰冻，火系附带灼烧）。在你的回合里，<strong>拖动英雄</strong>到别的位置就能躲开，全部躲开会显示「完美闪避！」。冰霜骨龙轰击一整排，巫妖砸 2 个位置，恐惧魔王砸 3 个位置，拉格纳罗斯的烈焰之浪扫过一整排，克苏恩的触须从 3 个位置钻出地面（命中会眩晕）。</li>
     <li><strong>狂暴化：</strong>首领血量降到一半时触发过场，天色变成血红，首领攻击 +30%，召唤 2 个援军，之后预警范围更大。</li>
   </ul>
   <div class="shots">
@@ -252,30 +254,59 @@
   </div>
 
   <h2>首领图鉴</h2>
-  <p>每 5 波一个首领，按冰霜骨龙、霜冠巫妖、恐惧魔王的顺序出现，之后循环，每轮更强。下表是基础数值，实际数值随波次放大（每波 +10%），比如第 5 波骨龙是 11 攻 / 210 血，第 15 波魔王是 26 攻 / 552 血。第 10 波起，首领身边还会带一只食尸鬼和一只憎恶。</p>
+  <p>每 5 波一个首领，按冰霜骨龙、霜冠巫妖、恐惧魔王、拉格纳罗斯、克苏恩的顺序出现，之后循环，每轮更强。下表是基础数值，实际数值随波次放大（每波 +10%），比如第 5 波骨龙是 11 攻 / 210 血，第 15 波魔王是 26 攻 / 552 血，第 20 波拉格纳罗斯是 38 攻 / 812 血，第 25 波克苏恩是 48 攻 / 1122 血。第 10 波起，首领身边还会带一只食尸鬼和一只憎恶。</p>
   <table>
     <tr><th>首领</th><th>出场</th><th>基础攻 / 血</th><th>技能（每 3 回合一轮）</th><th>地面预警</th></tr>
     <tr><td>冰霜骨龙</td><td>第 5 波</td><td>8 / 150</td><td>冰霜吐息：全体英雄受到 70% 攻击伤害，大本营 -5</td><td>冰霜吐息：轰击一整排，附带冰冻</td></tr>
     <tr><td>霜冠巫妖</td><td>第 10 波</td><td>9 / 190</td><td>亡灵大军：召唤 2 只食尸鬼；冰霜新星：全体 50% 伤害并冰冻 1 名英雄</td><td>冰柱坠落：砸 2 个位置，附带冰冻</td></tr>
     <tr><td>恐惧魔王</td><td>第 15 波</td><td>11 / 230</td><td>邪能火雨：全体 50% 伤害，大本营 -8；平时以 140% 伤害攻击攻击力最高的英雄并全额吸血</td><td>邪能陨石：砸 3 个位置，附带灼烧</td></tr>
+    <tr><td>炎魔之王拉格纳罗斯</td><td>第 20 波 · 熔火之心</td><td>13 / 280</td><td>熔岩爆发：岩浆从天而降，全体 60% 火焰伤害并灼烧（每回合 4，持续 2 回合），大本营 -8；萨弗拉斯之击：以 150% 伤害重锤攻击力最高的英雄并灼烧</td><td>烈焰之浪：扫过一整排，附带灼烧</td></tr>
+    <tr><td>上古之神克苏恩</td><td>第 25 波 · 安其拉神殿</td><td>14 / 330</td><td>疯狂低语：全体 50% 奥术伤害，每名英雄被吸走 30 点怒气，大本营 -10；黑暗闪耀：巨眼射出光束，依次打中 3 名随机英雄（狂暴后 4 名），每束 80% 伤害，并眩晕其中 1 名</td><td>触须钻地：3 个位置，命中会眩晕 1 回合</td></tr>
   </table>
   <ul>
     <li><strong>预警节奏：</strong>首领在第 2、5、8…回合标出红圈，下回合轰击（攻击的 2.2 倍）。在你的回合把英雄拖出红圈即可躲开。</li>
     <li><strong>狂暴化：</strong>血量降到一半时触发过场，天色变红，首领攻击 +30%，召唤 2 个援军，之后预警范围扩大。</li>
     <li><strong>奖励：</strong>击败首领后全队回满血，金币三倍，可以选「能量上限 +1」或「全体英雄升星」，并三选一获得遗物。</li>
-    <li><strong>模型：</strong>三个首领都有 AI 生成的 3D 模型。巫妖的符文剑固定在右手上，挥砍时不变形；恐惧魔王背后的翅膀会跟着动作扇动；骨龙用单独的四足骨骼，翅膀、三节尾巴和前爪都会动，攻击是扑咬，施法是仰头吐息。</li>
+    <li><strong>打法提示：</strong>拉格纳罗斯的火焰会让英雄持续掉血，冰系攻击和治疗都很重要；克苏恩会吸走怒气，大招充满就立刻放，别攒着。</li>
+    <li><strong>模型：</strong>五个首领都有 AI 生成的 3D 模型。巫妖的符文剑固定在右手上，挥砍时不变形；恐惧魔王背后的翅膀会跟着动作扇动；骨龙用单独的四足骨骼，翅膀、三节尾巴和前爪都会动，攻击是扑咬，施法是仰头吐息。拉格纳罗斯没有腿，上半身从熔岩柱里升起，萨弗拉斯重锤固定在右手上，熔岩底座始终不动，死亡时会沉进熔岩里而不是倒下；克苏恩是一根带巨眼的肉柱，六条触须各有两节骨骼，攻击时前方两条触须向前抽打，施法时所有触须向上张开、巨眼颤动。</li>
   </ul>
   <div class="shots">
     <figure><img src="boss_fight.png" alt="冰霜骨龙" /><figcaption>第 5 波：冰霜骨龙（AI 模型）</figcaption></figure>
     <figure><img src="boss_dragon_cast.png" alt="骨龙吐息" /><figcaption>骨龙仰头吐息</figcaption></figure>
     <figure><img src="up_boss_lich.png" alt="霜冠巫妖" /><figcaption>第 10 波：霜冠巫妖挥剑</figcaption></figure>
     <figure><img src="up_boss_demon.png" alt="恐惧魔王" /><figcaption>第 15 波：恐惧魔王施法</figcaption></figure>
+    <figure><img src="up_boss_rag.png" alt="拉格纳罗斯" /><figcaption>第 20 波：炎魔之王拉格纳罗斯（熔火之心）</figcaption></figure>
+    <figure><img src="up_rag_skill.png" alt="萨弗拉斯之击" /><figcaption>萨弗拉斯之击：英雄脚下燃起灼烧</figcaption></figure>
+    <figure><img src="up_boss_cthun.png" alt="克苏恩" /><figcaption>第 25 波：上古之神克苏恩（安其拉神殿）</figcaption></figure>
+    <figure><img src="up_cthun_skill.png" alt="黑暗闪耀" /><figcaption>黑暗闪耀：右侧英雄被眩晕</figcaption></figure>
   </div>
-  <p>在「⚙ 设置」切回「现有模型」时，首领使用套装模型：</p>
+  <p>在「⚙ 设置」切回「现有模型」时，前三个首领使用套装模型；套装里没有拉格纳罗斯和克苏恩，这两位显示圆形立绘：</p>
   <div class="shots">
     <figure><img src="kit_w5.png" alt="套装骨龙" /><figcaption>套装模型：冰霜骨龙</figcaption></figure>
     <figure><img src="kit_w10.png" alt="套装巫妖" /><figcaption>套装模型：霜冠巫妖</figcaption></figure>
     <figure><img src="kit_w15.png" alt="套装魔王" /><figcaption>套装模型：恐惧魔王</figcaption></figure>
+    <figure><img src="kit_w20.png" alt="立绘拉格纳罗斯" /><figcaption>套装模式：拉格纳罗斯显示立绘</figcaption></figure>
+    <figure><img src="kit_w25.png" alt="立绘克苏恩" /><figcaption>套装模式：克苏恩显示立绘</figcaption></figure>
+  </div>
+
+  <h2>场景</h2>
+  <p>每 5 波是一章，每章的场景由波次决定：</p>
+  <table>
+    <tr><th>波次</th><th>场景</th><th>首领</th><th>样子</th></tr>
+    <tr><td>1 到 15</td><td>林间大道</td><td>骨龙、巫妖、魔王</td><td>土路、草地、松树、营火、木栅栏、红蓝战旗</td></tr>
+    <tr><td>16 到 20</td><td>熔火之心</td><td>拉格纳罗斯</td><td>玄武岩路面，两侧是发光的岩浆裂缝和熔岩池，黑色石笋、黑曜石碎晶、石砌火盆、暗红和橙色战旗，空中飘着火星，雾气是暗红色</td></tr>
+    <tr><td>21 到 25</td><td>安其拉神殿</td><td>克苏恩</td><td>错缝砂岩地砖，两侧是沙丘和带波纹的沙地，残破的石柱和拱门、紫色的其拉水晶、紫焰火盆、紫金战旗，空中飘着沙尘</td></tr>
+    <tr><td>26 起</td><td colspan="3">回到林间大道，开始下一轮，首领更强</td></tr>
+  </table>
+  <ul>
+    <li><strong>切换：</strong>新章节第一波开始时，画面先淡出，换好场景后淡入，并显示场景名横幅（🔥 熔火之心、🏜 安其拉神殿）。随后乌鸦领主出来嘲讽，多说一句欢迎词。</li>
+    <li><strong>光线：</strong>每个场景都有自己的一套白天、精英、首领、狂暴四种光线。比如熔火之心的首领战更暗更红，安其拉神殿的首领战偏紫。</li>
+    <li><strong>做法：</strong>场景全部是程序生成的，没有用图片。三个场景共用同一套摆放位置，只换地面贴图和道具。熔岩的光由一张发光贴图做出来，会缓慢明暗起伏。代码在 <code>src/three/battlefield.ts</code>，章节对应关系在 <code>src/data.ts</code> 的 <code>themeFor()</code>。</li>
+  </ul>
+  <div class="shots">
+    <figure><img src="realm_forest.png" alt="林间大道" /><figcaption>林间大道（第 1 到 15 波）</figcaption></figure>
+    <figure><img src="realm_molten.png" alt="熔火之心" /><figcaption>进入熔火之心</figcaption></figure>
+    <figure><img src="realm_temple.png" alt="安其拉神殿" /><figcaption>进入安其拉神殿</figcaption></figure>
   </div>
 
   <h2>路边来客：先知与乌鸦领主</h2>
@@ -308,8 +339,8 @@
   <table>
     <tr><th>时机</th><th>谁出现</th><th>说什么</th></tr>
     <tr><td>第 1 波</td><td>德莱尼先知</td><td>开场介绍：亡灵天灾在北方苏醒，每五段路有一位首领挡路</td></tr>
-    <tr><td>首领战前一波（第 4、9、14…波）</td><td>德莱尼先知</td><td>预言下一位首领，并提示打法（骨龙：拖开红圈；巫妖：先冰后火；魔王：留大招等它狂暴）</td></tr>
-    <tr><td>击败首领后的第一波（第 6、11、16…波）</td><td>乌鸦领主</td><td>嘲讽，并点出下一个首领的名字</td></tr>
+    <tr><td>首领战前一波（第 4、9、14…波）</td><td>德莱尼先知</td><td>预言下一位首领，并提示打法（骨龙：拖开红圈；巫妖：先冰后火；魔王：留大招等它狂暴；拉格纳罗斯：冰霜浇灭怒火；克苏恩：怒气满了立刻放）</td></tr>
+    <tr><td>击败首领后的第一波（第 6、11、16…波）</td><td>乌鸦领主</td><td>嘲讽，并点出下一个首领的名字；进入熔火之心或安其拉神殿时，再加一句欢迎词</td></tr>
     <tr><td>精英战</td><td>乌鸦领主</td><td>提醒这是精英，打赢有遗物</td></tr>
     <tr><td>其他波次</td><td>随机一位，30% 几率，至少隔 2 波</td><td>玩法小提示：羁绊、站位、营火、商店、怒气大招、元素反应等</td></tr>
   </table>
@@ -319,6 +350,9 @@
     <figure><img src="stage_foretell.png" alt="先知预言" /><figcaption>第 4 波：先知预言冰霜骨龙</figcaption></figure>
     <figure><img src="stage_raven.png" alt="乌鸦领主" /><figcaption>第 6 波：乌鸦领主点出下一个首领</figcaption></figure>
     <figure><img src="stage_oracle_kit.png" alt="立绘模式" /><figcaption>套装模型模式下显示立绘</figcaption></figure>
+    <figure><img src="stage_raven_molten.png" alt="欢迎来到熔火之心" /><figcaption>第 16 波：乌鸦领主欢迎来到熔火之心</figcaption></figure>
+    <figure><img src="stage_foretell_rag.png" alt="预言拉格纳罗斯" /><figcaption>第 19 波：先知预言拉格纳罗斯</figcaption></figure>
+    <figure><img src="stage_foretell_cthun.png" alt="预言克苏恩" /><figcaption>第 24 波：先知预言克苏恩</figcaption></figure>
   </div>
 
   <h2>各阶段截图</h2>
@@ -352,10 +386,16 @@
     <figure><img src="stage_raven.png" alt="乌鸦" /><figcaption>第 6 波：乌鸦领主</figcaption></figure>
     <figure><img src="up_boss_lich.png" alt="巫妖" /><figcaption>第 10 波：霜冠巫妖</figcaption></figure>
     <figure><img src="up_boss_demon.png" alt="魔王" /><figcaption>第 15 波：恐惧魔王</figcaption></figure>
+    <figure><img src="realm_molten.png" alt="熔火之心" /><figcaption>第 16 波：进入熔火之心</figcaption></figure>
+    <figure><img src="stage_foretell_rag.png" alt="预言" /><figcaption>第 19 波：先知预言拉格纳罗斯</figcaption></figure>
+    <figure><img src="up_rag_skill.png" alt="拉格纳罗斯" /><figcaption>第 20 波：拉格纳罗斯</figcaption></figure>
+    <figure><img src="realm_temple.png" alt="安其拉" /><figcaption>第 21 波：进入安其拉神殿</figcaption></figure>
+    <figure><img src="stage_foretell_cthun.png" alt="预言" /><figcaption>第 24 波：先知预言克苏恩</figcaption></figure>
+    <figure><img src="up_cthun_skill.png" alt="克苏恩" /><figcaption>第 25 波：克苏恩</figcaption></figure>
   </div>
 
   <h2>3D 模型制作流程</h2>
-  <p>现在一共有 15 个 AI 模型：6 个英雄、4 种敌人、3 个首领、2 个路边来客。每个模型的制作步骤如下，以冰霜骨龙为例。</p>
+  <p>现在一共有 17 个 AI 模型：6 个英雄、4 种敌人、5 个首领、2 个路边来客。每个模型的制作步骤如下，以冰霜骨龙为例。</p>
   <ol>
     <li><strong>参考图：</strong>先生成一张灰底、全身、正面朝向的 Q 版角色图，保存在 <code>.playtest/ai_refs/</code>。</li>
     <li><strong>图生 3D：</strong>用 <code>.playtest/ai_gen.py</code> 调用 Hugging Face 上的 TRELLIS（ZeroGPU），输出带贴图的 GLB 到 <code>.playtest/ai_raw/</code>。每个模型约 1 分钟，排队时可能几分钟。免费额度有限，每次生成先预留 120 秒 GPU 时间，一天大约能做 2 到 3 个模型。这次首领模型就是等额度恢复（约 13 小时）后才生成的。</li>
@@ -364,11 +404,19 @@
       <ul>
         <li>武器等硬物按三维区域整体固定到手上，比如巫妖的剑、魔王的邪火、乌鸦领主的法杖；</li>
         <li>可以额外加骨骼，比如魔王和骨龙的翅膀、骨龙的尾巴和前爪；</li>
-        <li>可以删除生成失败的碎片，比如先知手上那块没有贴图的悬浮水晶。</li>
+        <li>可以删除生成失败的碎片，比如先知手上那块没有贴图的悬浮水晶、拉格纳罗斯背后一块飘着的碎石；</li>
+        <li>可以只要手臂不要腿：拉格纳罗斯没有腿，只建上半身和双臂；</li>
+        <li>可以加一根不参与动画的底座骨骼，把底座固定住：拉格纳罗斯的熔岩底座、克苏恩的砂岩底座都绑在它上面，身体怎么动底座都不跟着动。</li>
       </ul>
     </li>
-    <li><strong>动画：</strong>为每个模型烘焙待机、行走、攻击、施法、受击、死亡、欢呼、眩晕 8 段动画。人形角色按近战、施法、弓箭三种风格生成攻击动作；骨龙用单独的一套四足动画。</li>
-    <li><strong>检查：</strong>用 <code>ai_pose_preview.py</code> 渲染每段动画的关键帧拼成对照表，检查有没有撕裂或拉伸。比如乌鸦领主的法杖底部和斗篷是连在一起的，第一次绑骨时杖一动就把斗篷拉出一大片，把法杖的固定区域缩小后就正常了。</li>
+    <li><strong>动画：</strong>为每个模型烘焙待机、行走、攻击、施法、受击、死亡、欢呼、眩晕 8 段动画。人形角色按近战、施法、弓箭三种风格生成攻击动作；骨龙用单独的一套四足动画；拉格纳罗斯沿用人形近战动作，但行走改成原地浮动，死亡改成沉入熔岩；克苏恩用单独的一套触须动画，六条触须按方向分别弯曲和摆动。</li>
+    <li><strong>检查：</strong>用 <code>ai_pose_preview.py</code> 渲染每段动画的关键帧拼成对照表，检查有没有撕裂或拉伸。几个例子：
+      <ul>
+        <li>乌鸦领主的法杖底部和斗篷连在一起，第一次绑骨时杖一动就把斗篷拉出一大片，把法杖的固定区域缩小后就正常了。</li>
+        <li>拉格纳罗斯的锤柄固定区域碰到了熔岩底座的尖角，攻击时从手上拉出一根细丝到地面，把区域下沿抬高后就好了。</li>
+        <li>克苏恩的砂岩底座最初只固定了下半截，触须一抬就把底座上沿拉成一圈黑墙。按高度统计顶点后发现底座顶面在 0.06 到 0.08 之间，把固定高度提到 0.075，并让触须主要靠末端一节抬起，就基本没有拉伸了。</li>
+      </ul>
+    </li>
     <li><strong>接入游戏：</strong>导出到 <code>public/models/ai/</code>，加进 <code>manifest.json</code>，再用自动化测试进游戏截图确认。</li>
   </ol>
   <div class="shots">
@@ -380,10 +428,18 @@
   <div class="shots">
     <figure><img src="proc_ref_prophet.png" alt="先知参考图" /><figcaption>德莱尼先知参考图</figcaption></figure>
     <figure><img src="proc_ref_raven.png" alt="乌鸦参考图" /><figcaption>乌鸦领主参考图</figcaption></figure>
+    <figure><img src="proc_ref_rag.png" alt="拉格纳罗斯参考图" /><figcaption>拉格纳罗斯参考图</figcaption></figure>
+    <figure><img src="proc_ref_cthun.png" alt="克苏恩参考图" /><figcaption>克苏恩参考图</figcaption></figure>
+  </div>
+  <div class="shots">
+    <figure><img src="proc_raw_rag.png" alt="拉格纳罗斯网格" /><figcaption>拉格纳罗斯：TRELLIS 网格（已转正朝向）</figcaption></figure>
+    <figure><img src="proc_sheet_rag.png" alt="拉格纳罗斯动画" /><figcaption>拉格纳罗斯 8 段动画，第三排右半是死亡时沉入熔岩</figcaption></figure>
+    <figure><img src="proc_raw_cthun.png" alt="克苏恩网格" /><figcaption>克苏恩：TRELLIS 网格</figcaption></figure>
+    <figure><img src="proc_sheet_cthun.png" alt="克苏恩动画" /><figcaption>克苏恩 8 段触须动画</figcaption></figure>
   </div>
 
   <h2>测试</h2>
-  <p>所有测试都是 <code>.playtest/</code> 下的 puppeteer 脚本，在无头 Chrome 里跑真实游戏。最近一次是 2026 年 10 月 10 日逐个运行，7 套全部通过，共 103 项检查：</p>
+  <p>所有测试都是 <code>.playtest/</code> 下的 puppeteer 脚本，在无头 Chrome 里跑真实游戏。最近一次是 2026 年 10 月 11 日逐个运行，7 套全部通过，共 146 项检查：</p>
   <table>
     <tr><th>脚本</th><th>检查数</th><th>覆盖内容</th></tr>
     <tr><td><code>playtest.mjs</code></td><td>30</td><td>设置面板切换模型、天赋加点与重置、卡组编辑保存、第 1/5/10/15 波开局、出牌、回合结算，3D 模型无泄漏、无报错</td></tr>
@@ -391,8 +447,8 @@
     <tr><td><code>finale.mjs</code></td><td>8</td><td>最后一击：慢动作、镜头聚焦、恢复视角、胜利横幅</td></tr>
     <tr><td><code>orbit.mjs</code></td><td>13</td><td>旋转镜头、转动后点击单位、双击复位、滚轮缩放</td></tr>
     <tr><td><code>route_screens.mjs</code></td><td>截图</td><td>营火、商店、四种奇遇、遗物选择界面，无报错</td></tr>
-    <tr><td><code>bosses.mjs</code></td><td>6</td><td>三个首领的 AI 模型加载、待机、攻击、施法</td></tr>
-    <tr><td><code>oracle.mjs</code></td><td>23</td><td>德莱尼先知开场介绍和首领预言、乌鸦领主嘲讽并点出下一个首领、两句台词依次显示、套装模式下的立绘兜底、来客离开后正常开始回合</td></tr>
+    <tr><td><code>bosses.mjs</code></td><td>30</td><td>五个首领的 AI 模型加载、待机、攻击、施法，每个首领波次的场景是否正确；拉格纳罗斯和克苏恩的每个技能分支（熔岩爆发和重锤会灼烧、黑暗闪耀会眩晕、疯狂低语会吸怒气、预警标记和轰击）；林间大道 → 熔火之心 → 安其拉神殿的场景切换</td></tr>
+    <tr><td><code>oracle.mjs</code></td><td>42</td><td>德莱尼先知开场介绍和首领预言（含第 19、24 波预言拉格纳罗斯和克苏恩）、乌鸦领主嘲讽并点出下一个首领、第 16 波的熔火之心欢迎词、多句台词依次显示、套装模式下的立绘兜底、来客离开后正常开始回合</td></tr>
   </table>
   <p>这次顺手修了两处过时的测试：卡组测试原来写死初始卡组是 10 张（现在是 14 张），设置测试在 AI 模型还没加载完时就点了切回。几项和时间相关的检查（大招慢动作、胜利横幅）在多个浏览器并行跑时会因为帧率下降偶尔失败，单独运行都正常。</p>
 
@@ -401,7 +457,9 @@
     <li><code>src/oracle.ts</code>：路边来客的台词和出现规则。</li>
     <li><code>src/run.ts</code>：大招、元素反应、羁绊、遗物、首领预警、路线的数据，调数值主要改这里。</li>
     <li><code>src/scenes/route.ts</code>：路线、商店、营火、奇遇、遗物选择界面。</li>
-    <li><code>src/scenes/BattleScene.ts</code>：战斗逻辑，包括伤害、暴击、反应、大招过场、首领预警、狂暴化、巨龙空袭。</li>
+    <li><code>src/scenes/BattleScene.ts</code>：战斗逻辑，包括伤害、暴击、反应、大招过场、首领预警、狂暴化、巨龙空袭、五个首领的 AI 和章节场景切换。</li>
+    <li><code>src/three/battlefield.ts</code>：三个场景的地面、道具和光线。</li>
+    <li>拉格纳罗斯和克苏恩同时写在 <code>src/data.ts</code> 和 <code>public/card-data.json</code> 里。卡牌编辑器的敌人页新增了灼烧伤害、射线目标数和吸走怒气三个参数。</li>
     <li><code>src/three/view.ts</code>：镜头旋转、缩放、聚焦和慢动作的共享状态。</li>
     <li>「巨龙空袭」同时写在 <code>src/data.ts</code> 和 <code>public/card-data.json</code> 里，因为后者会整表覆盖卡牌数据。卡牌编辑器也支持编辑它。</li>
   </ul>
@@ -414,7 +472,7 @@
 
   <h2>需要知道的几点</h2>
   <ul>
-    <li><strong>测试参数：</strong>网址后加 <code>?wave=5</code> 可以直接从指定波次开始，比如直接打 BOSS。</li>
+    <li><strong>测试参数：</strong>网址后加 <code>?wave=5</code> 可以直接从指定波次开始，比如直接打 BOSS。<code>?wave=20</code> 直接打拉格纳罗斯，<code>?wave=25</code> 直接打克苏恩。</li>
     <li><strong>调数值：</strong>卡牌、英雄、敌人、BOSS 的数值和波次生成都在 <code>src/data.ts</code>。</li>
     <li><strong>背景翻转：</strong>为了让背景能无缝循环滚动，战场图做了上下镜像拼接，所以前进几波后会看到倒过来的旗帜和树木。之后要改的话，可以换一张专门做成首尾相接的背景图。</li>
     <li><strong>重新启动：</strong>以后自己运行用 <code>npm run dev</code>，地址是 <a href="http://localhost:5174/">http://localhost:5174</a>。</li>

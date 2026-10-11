@@ -1,4 +1,4 @@
-import { BOSS_EVERY, BOSS_ORDER, ENEMIES, isBossWave } from './data';
+import { BOSS_EVERY, BOSS_ORDER, ENEMIES, Theme, isBossWave, themeFor } from './data';
 
 /** Roadside visitors who appear between fights, foretell what lies ahead, then vanish. */
 export type OracleKey = 'prophet' | 'raven';
@@ -30,6 +30,14 @@ const FORETELL: Record<string, string[]> = {
   dragon: ['我看见冰霜之翼遮蔽了天空……冰霜骨龙将在下一战降临。', '它的吐息会冻结一整排战士。看到地上的红圈，就把英雄拖开！'],
   lich: ['寒冰王冠正在召唤它的仆从……霜冠巫妖就在前方。', '它会唤来食尸鬼，冻住你的战士。先用寒冰，再用烈火，蒸汽会替你清场。'],
   demon: ['空气里满是邪能的气息……恐惧魔王正在暗处窥视。', '它专吸最强战士的生命，半血后还会狂暴。把大招留到那一刻！'],
+  rag: ['大地在燃烧……炎魔之王拉格纳罗斯从熔岩中苏醒了！', '烈焰之浪会扫过一整排，萨弗拉斯重锤专砸最强的战士。冰霜能浇灭他的怒火。'],
+  cthun: ['我听见了……沙层之下，有什么在低语。上古之神克苏恩睁开了眼睛。', '它的凝视会让战士眩晕，低语会吸走怒气。怒气满了就立刻释放，别等！'],
+};
+
+/** Spoken by the raven as the party crosses into a new realm. */
+const REALM_LINES: Partial<Record<Theme, string>> = {
+  molten: '欢迎来到熔火之心。这里的岩浆会记住每一个倒下的人。嘎。',
+  temple: '安其拉的流沙下埋着比死亡更古老的东西……别盯着它的眼睛。',
 };
 
 const PROPHET_TIPS = [
@@ -64,7 +72,10 @@ export function oracleFor(wave: number, lastVisit: number, elite: boolean, rnd =
   if (isBossWave(wave + 1)) return { who: 'prophet', lines: FORETELL[bossOn(wave + 1).key] };
   if (isBossWave(wave - 1)) {
     const next = bossOn(wave - 1 + BOSS_EVERY);
-    return { who: 'raven', lines: ['哼，一位首领倒下了，可乌鸦们早已飞向别处。', `下一个等着你们的，是${next.name}。我会看着——看你们能走多远。`] };
+    const lines = ['哼，一位首领倒下了，可乌鸦们早已飞向别处。', `下一个等着你们的，是${next.name}。我会看着——看你们能走多远。`];
+    const realm = themeFor(wave);
+    if (realm !== themeFor(wave - 1) && REALM_LINES[realm]) lines.push(REALM_LINES[realm]!);
+    return { who: 'raven', lines };
   }
   if (elite) return { who: 'raven', lines: ['这些敌人身上有我熟悉的黑暗……是精英。打赢它们，遗物就归你们。'] };
   if (wave - lastVisit < MIN_GAP || rnd() >= RANDOM_CHANCE) return null;

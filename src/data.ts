@@ -156,7 +156,7 @@ export const RARITY_COLOR: Record<Rarity, number> = {
 
 export const RARITY_STARS: Record<Rarity, number> = { common: 3, rare: 4, epic: 5 };
 
-export type EnemyAI = 'basic' | 'armored' | 'summoner' | 'cleave' | 'boss_dragon' | 'boss_lich' | 'boss_demon';
+export type EnemyAI = 'basic' | 'armored' | 'summoner' | 'cleave' | 'boss_dragon' | 'boss_lich' | 'boss_demon' | 'boss_rag' | 'boss_cthun';
 
 export interface EnemyAIParams {
   summonKey?: string;
@@ -166,6 +166,9 @@ export interface EnemyAIParams {
   aoeBaseDamage?: number;
   lifesteal?: number;
   stunTurns?: number;
+  burnDamage?: number;
+  beamTargets?: number;
+  rageDrain?: number;
 }
 
 export interface EnemyDef {
@@ -190,13 +193,23 @@ export const ENEMIES: Record<string, EnemyDef> = {
   dragon: { id: 'dragon', name: '冰霜骨龙', art: 'b_dragon', atk: 8, hp: 150, ai: 'boss_dragon', aiParams: { aoeRatio: 0.7, aoeBaseDamage: 5 }, boss: true, desc: '每 3 回合：冰霜吐息攻击全体' },
   lich: { id: 'lich', name: '霜冠巫妖', art: 'b_lich', atk: 9, hp: 190, ai: 'boss_lich', aiParams: { summonKey: 'ghoul', summonCount: 2, aoeRatio: 0.5, stunTurns: 1 }, boss: true, desc: '召唤亡灵，冰冻友军' },
   demon: { id: 'demon', name: '恐惧魔王', art: 'b_demon', atk: 11, hp: 230, ai: 'boss_demon', aiParams: { aoeRatio: 0.5, aoeBaseDamage: 8, lifesteal: 1 }, boss: true, desc: '吸血攻击最强的友军' },
+  rag: { id: 'rag', name: '炎魔之王拉格纳罗斯', art: 'b_rag', atk: 13, hp: 280, ai: 'boss_rag', aiParams: { aoeRatio: 0.6, aoeBaseDamage: 8, burnDamage: 4 }, boss: true, desc: '熔岩爆发灼烧全体，萨弗拉斯重锤砸最强友军' },
+  cthun: { id: 'cthun', name: '上古之神克苏恩', art: 'b_cthun', atk: 14, hp: 330, ai: 'boss_cthun', aiParams: { aoeRatio: 0.5, aoeBaseDamage: 10, beamTargets: 3, stunTurns: 1, rageDrain: 30 }, boss: true, desc: '黑暗闪耀击晕友军，疯狂低语吸走怒气' },
 };
 
 export const BOSS_EVERY = 5;
-export const BOSS_ORDER = ['dragon', 'lich', 'demon'];
+export const BOSS_ORDER = ['dragon', 'lich', 'demon', 'rag', 'cthun'];
 
 export function isBossWave(wave: number) {
   return wave % BOSS_EVERY === 0;
+}
+
+/** Battlefield scenery per five-wave chapter: the Molten Core leads to Ragnaros, Ahn'Qiraj to C'Thun. */
+export type Theme = 'forest' | 'molten' | 'temple';
+const CHAPTER_THEMES: Theme[] = ['forest', 'forest', 'forest', 'molten', 'temple'];
+
+export function themeFor(wave: number): Theme {
+  return CHAPTER_THEMES[Math.floor((Math.max(1, wave) - 1) / BOSS_EVERY) % CHAPTER_THEMES.length];
 }
 
 export function waveScale(wave: number) {

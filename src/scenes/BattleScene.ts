@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import {
   BOSS_EVERY,
+  BOSS_ORDER,
   CARDS,
   ENEMIES,
   EnemyAI,
@@ -10,10 +11,12 @@ import {
   Rarity,
   SpellDef,
   SpellEffect,
+  Theme,
   UnitAction,
   UnitSkill,
   buildWave,
   isBossWave,
+  themeFor,
   unitSkill,
   waveScale,
 } from '../data';
@@ -125,6 +128,11 @@ const ENEMY_SLOTS = [
 ];
 const ENEMY_FILL_ORDER = [1, 0, 2, 4, 3, 5];
 const BOSS_SLOT = 4;
+const REALM_TITLES: Record<Theme, [string, string]> = {
+  forest: ['🌲 重返林间大道', '#a8e07a'],
+  molten: ['🔥 熔火之心', '#ff8a3a'],
+  temple: ['🏜 安其拉神殿', '#d8b0ff'],
+};
 /** Drags starting on empty ground between the top bar and the bottom HUD orbit the camera. */
 const ORBIT_TOP = 56;
 const ORBIT_BOTTOM = 650;
@@ -173,6 +181,7 @@ export class BattleScene extends Phaser.Scene {
   private nodeKind: RouteKind = 'fight';
   /** Wave of the last roadside visit, so chance visits stay occasional. */
   private lastOracle = -99;
+  private realm: Theme = 'forest';
   private killEnergyUsed = false;
   /** Cards and ultimates can still be played this turn (energy refunds matter). */
   private playerPhase = false;
@@ -245,6 +254,8 @@ export class BattleScene extends Phaser.Scene {
     this.over = false;
 
     this.bg = addBackground(this);
+    this.realm = themeFor(this.wave);
+    this.bg.setTheme(this.realm);
     this.bgScroll = 0;
 
     this.buildHud();
@@ -694,10 +705,12 @@ export class BattleScene extends Phaser.Scene {
     this.drawPile = Phaser.Utils.Array.Shuffle([...this.deck]);
     this.discard = [];
     this.refreshHud();
+    const realm = themeFor(this.wave);
+    if (realm !== this.realm) await this.enterRealm(realm);
 
     const list = buildWave(this.wave);
     const boss = isBossWave(this.wave);
-    const cycle = Math.floor((this.wave - 1) / (BOSS_EVERY * 3));
+    const cycle = Math.floor((this.wave - 1) / (BOSS_EVERY * BOSS_ORDER.length));
     const fill = boss ? [BOSS_SLOT, 1, 0, 2] : ENEMY_FILL_ORDER;
     const elite = !boss && this.nodeKind === 'elite';
     this.bg.setMood(boss ? 'boss' : elite ? 'elite' : 'day');
@@ -724,6 +737,17 @@ export class BattleScene extends Phaser.Scene {
       await this.oracle(visit.who, visit.lines);
     }
     this.startPlayerTurn();
+  }
+
+  /** Fade through black into the next chapter's scenery and name it. */
+  private async enterRealm(realm: Theme) {
+    this.realm = realm;
+    this.cameras.main.fadeOut(350, 0, 0, 0);
+    await wait(this, 380);
+    this.bg.setTheme(realm);
+    this.cameras.main.fadeIn(500, 0, 0, 0);
+    const [title, color] = REALM_TITLES[realm];
+    await this.banner(title, color, 34);
   }
 
   // ---------------------------------------------------------------- roadside visitors
@@ -1547,6 +1571,24 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: g, alpha: 0, duration: 300, onComplete: () => g.destroy() });
   }
 
+  /** C'Thun's gaze: a thick amber beam from the eye that holds briefly, then thins out. */
+  private async eyeBeam(src: UnitView, dst: { x: number; y: number }) {
+    const from = this.pt(src.x, src.y - src.radius * 1.3);
+    const to = this.pt(dst.x, dst.y);
+    const g = this.add.graphics().setDepth(30);
+    const draw = (w: number) => {
+      g.clear();
+      g.lineStyle(w * 2.4, 0x7a30c0, 0.45).lineBetween(from.x, from.y, to.x, to.y);
+      g.lineStyle(w, 0xffd84a, 1).lineBetween(from.x, from.y, to.x, to.y);
+    };
+    const s = { w: 2 };
+    await tweenP(this, { targets: s, w: 12, duration: 140, ease: 'Quad.out', onUpdate: () => draw(s.w) });
+    this.burst(dst.x, dst.y, 0xffd84a, 12);
+    this.cameras.main.shake(120, 0.006);
+    await tweenP(this, { targets: s, w: 0, duration: 220, ease: 'Quad.in', onUpdate: () => draw(s.w) });
+    g.destroy();
+  }
+
   /** Healing / shielding scales with stars unless an action opts out via `flat`. */
   private skillAmount(a: Unit, amount: number, flat?: boolean) {
     const star = flat ? 1 : 1 + 0.35 * (a.level - 1);
@@ -1744,6 +1786,72 @@ export class BattleScene extends Phaser.Scene {
         }
         break;
       }
+      case 'boss_rag': {
+        const burn = p.burnDamage ?? 4;
+        if (e.turns % 3 === 0) {
+          this.floatText(e.view.x, e.view.y + 80, '熔岩爆发！', '#ff8a2a', 26);
+          await e.view.act('cast');
+          this.cameras.main.shake(380, 0.012);
+          this.cameras.main.flash(200, 255, 120, 30);
+          const allies = this.liveAllies();
+          await Promise.all(allies.map((a) => this.projectile({ x: a.view.x + 40, y: a.view.y - 380 }, a.view, 0xff6a1a, 14)));
+          allies.forEach((a) => {
+            this.burst(a.view.x, a.view.y, 0xff8a2a, 12);
+            this.damage(a, this.atkOf(e) * (p.aoeRatio ?? 0.6), { element: 'fire' });
+            if (!a.dead) this.applyBurn(a, burn, 2);
+          });
+          await this.projectile(e.view, BASE_POS, 0xff6a1a, 14);
+          this.damageBase(p.aoeBaseDamage ?? 8);
+        } else {
+          const allies = this.liveAllies();
+          const strongest = allies.length ? allies.reduce((x, y) => (this.atkOf(y) > this.atkOf(x) ? y : x)) : null;
+          if (strongest) this.floatText(e.view.x, e.view.y + 80, '萨弗拉斯之击！', '#ffb04a', 22);
+          await this.enemyHit(e, strongest, 1.5);
+          if (strongest && !strongest.dead) {
+            this.cameras.main.shake(220, 0.01);
+            this.burst(strongest.view.x, strongest.view.y, 0xff6a1a, 14);
+            this.applyBurn(strongest, burn, 2);
+          }
+        }
+        break;
+      }
+      case 'boss_cthun': {
+        const allies = this.liveAllies();
+        if (e.turns % 3 === 0) {
+          this.floatText(e.view.x, e.view.y + 80, '疯狂低语……', '#c9a0ff', 26);
+          await e.view.act('cast');
+          this.cameras.main.flash(260, 120, 40, 180);
+          const drain = p.rageDrain ?? 30;
+          allies.forEach((a) => {
+            this.burst(a.view.x, a.view.y, 0xa070ff, 10);
+            this.damage(a, this.atkOf(e) * (p.aoeRatio ?? 0.5), { element: 'arcane' });
+            if (a.dead || a.rage <= 0) return;
+            a.rage = Math.max(0, a.rage - drain);
+            a.view.setRage(a.rage / RAGE_MAX);
+            this.floatText(a.view.x, a.view.y - 70, `怒气 -${drain}`, '#c9a0ff', 14);
+          });
+          await this.projectile(e.view, BASE_POS, 0xa070ff, 14);
+          this.damageBase(p.aoeBaseDamage ?? 10);
+        } else if (allies.length) {
+          const n = Math.min(allies.length, (p.beamTargets ?? 3) + (e.enraged ? 1 : 0));
+          const targets = Phaser.Utils.Array.Shuffle(allies.slice()).slice(0, n) as Unit[];
+          this.floatText(e.view.x, e.view.y + 80, '黑暗闪耀！', '#ffd84a', 26);
+          await e.view.act('cast');
+          for (const t of targets) {
+            await this.eyeBeam(e.view, t.view);
+            this.damage(t, this.atkOf(e) * 0.8, { element: 'arcane' });
+          }
+          const stunned = targets.find((t) => !t.dead);
+          if (stunned) {
+            stunned.stun = Math.max(stunned.stun, p.stunTurns ?? 1);
+            this.floatText(stunned.view.x, stunned.view.y - 70, '眩晕', '#ffd84a', 16);
+            this.refreshUnit(stunned);
+          }
+        } else {
+          await this.enemyHit(e, null);
+        }
+        break;
+      }
       default:
         await this.enemyHit(e, this.pickAllyTarget());
     }
@@ -1924,7 +2032,10 @@ export class BattleScene extends Phaser.Scene {
       this.damage(a, this.atkOf(boss) * 2.2, { element: m.def.element });
       if (a.dead) continue;
       if (m.def.element === 'ice') this.freeze(a, 1);
-      else this.applyBurn(a, 4, 2);
+      else if (m.def.element === 'arcane') {
+        a.stun = Math.max(a.stun, 1);
+        this.refreshUnit(a);
+      } else this.applyBurn(a, 4, 2);
     }
     this.clearMarks();
     if (hits === 0) {
