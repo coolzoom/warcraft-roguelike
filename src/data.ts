@@ -156,7 +156,7 @@ export const RARITY_COLOR: Record<Rarity, number> = {
 
 export const RARITY_STARS: Record<Rarity, number> = { common: 3, rare: 4, epic: 5 };
 
-export type EnemyAI = 'basic' | 'armored' | 'summoner' | 'cleave' | 'boss_dragon' | 'boss_lich' | 'boss_demon' | 'boss_rag' | 'boss_cthun';
+export type EnemyAI = 'basic' | 'armored' | 'summoner' | 'cleave' | 'boss_dragon' | 'boss_lich' | 'boss_demon' | 'boss_rag' | 'boss_cthun' | 'boss_archi' | 'boss_sarg';
 
 export interface EnemyAIParams {
   summonKey?: string;
@@ -169,6 +169,11 @@ export interface EnemyAIParams {
   burnDamage?: number;
   beamTargets?: number;
   rageDrain?: number;
+  /** Archimonde: Finger of Death kills a hero it leaves below this fraction of max HP. */
+  executeBelow?: number;
+  /** Sargeras: the sword takes these fractions of every hero's max HP and of the base's max HP. */
+  swordRatio?: number;
+  swordBaseRatio?: number;
 }
 
 export interface EnemyDef {
@@ -195,18 +200,20 @@ export const ENEMIES: Record<string, EnemyDef> = {
   demon: { id: 'demon', name: '恐惧魔王', art: 'b_demon', atk: 11, hp: 230, ai: 'boss_demon', aiParams: { aoeRatio: 0.5, aoeBaseDamage: 8, lifesteal: 1 }, boss: true, desc: '吸血攻击最强的友军' },
   rag: { id: 'rag', name: '炎魔之王拉格纳罗斯', art: 'b_rag', atk: 13, hp: 280, ai: 'boss_rag', aiParams: { aoeRatio: 0.6, aoeBaseDamage: 8, burnDamage: 4 }, boss: true, desc: '熔岩爆发灼烧全体，萨弗拉斯重锤砸最强友军' },
   cthun: { id: 'cthun', name: '上古之神克苏恩', art: 'b_cthun', atk: 14, hp: 330, ai: 'boss_cthun', aiParams: { aoeRatio: 0.5, aoeBaseDamage: 10, beamTargets: 3, stunTurns: 1, rageDrain: 30 }, boss: true, desc: '黑暗闪耀击晕友军，疯狂低语吸走怒气' },
+  archi: { id: 'archi', name: '污染者阿克蒙德', art: 'b_archi', atk: 15, hp: 380, ai: 'boss_archi', aiParams: { burnDamage: 5, executeBelow: 0.3 }, boss: true, desc: '死亡之指处决最强友军，末日之火灼烧' },
+  sarg: { id: 'sarg', name: '堕落泰坦萨格拉斯', art: 'b_sarg', atk: 16, hp: 450, ai: 'boss_sarg', aiParams: { swordRatio: 0.8, swordBaseRatio: 0.5 }, boss: true, desc: '审判之剑贯穿全体：英雄掉 80% 血，大本营掉 50% 血' },
 };
 
 export const BOSS_EVERY = 5;
-export const BOSS_ORDER = ['dragon', 'lich', 'demon', 'rag', 'cthun'];
+export const BOSS_ORDER = ['dragon', 'lich', 'demon', 'rag', 'cthun', 'archi', 'sarg'];
 
 export function isBossWave(wave: number) {
   return wave % BOSS_EVERY === 0;
 }
 
 /** Battlefield scenery per five-wave chapter: the Molten Core leads to Ragnaros, Ahn'Qiraj to C'Thun. */
-export type Theme = 'forest' | 'molten' | 'temple';
-const CHAPTER_THEMES: Theme[] = ['forest', 'forest', 'forest', 'molten', 'temple'];
+export type Theme = 'forest' | 'molten' | 'temple' | 'hyjal' | 'argus';
+const CHAPTER_THEMES: Theme[] = ['forest', 'forest', 'forest', 'molten', 'temple', 'hyjal', 'argus'];
 
 export function themeFor(wave: number): Theme {
   return CHAPTER_THEMES[Math.floor((Math.max(1, wave) - 1) / BOSS_EVERY) % CHAPTER_THEMES.length];

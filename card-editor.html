@@ -185,6 +185,8 @@
                 <option value="boss_demon">boss_demon 火雨 + 吸血单体</option>
                 <option value="boss_rag">boss_rag 熔岩爆发 + 重锤灼烧</option>
                 <option value="boss_cthun">boss_cthun 黑暗闪耀 + 吸怒低语</option>
+                <option value="boss_archi">boss_archi 死亡之指 + 末日之火</option>
+                <option value="boss_sarg">boss_sarg 审判之剑贯穿全体</option>
               </select>
             </label>
             <label class="field checkbox"><span>BOSS</span><input id="enemy-boss" type="checkbox" /></label>
@@ -203,6 +205,9 @@
             <label class="field"><span>灼烧伤害 burnDamage</span><input id="enemy-burn" class="input" type="number" min="0" /></label>
             <label class="field"><span>射线目标数 beamTargets</span><input id="enemy-beam" class="input" type="number" min="0" /></label>
             <label class="field"><span>吸走怒气 rageDrain</span><input id="enemy-rage-drain" class="input" type="number" min="0" /></label>
+            <label class="field"><span>处决线 executeBelow</span><input id="enemy-execute" class="input" type="number" step="0.05" min="0" max="1" /></label>
+            <label class="field"><span>剑伤比例 swordRatio</span><input id="enemy-sword" class="input" type="number" step="0.05" min="0" max="1" /></label>
+            <label class="field"><span>大本营剑伤比例 swordBaseRatio</span><input id="enemy-sword-base" class="input" type="number" step="0.05" min="0" max="1" /></label>
           </div>
           <p id="enemy-ai-hint" class="muted small"></p>
 

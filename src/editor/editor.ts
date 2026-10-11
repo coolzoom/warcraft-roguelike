@@ -84,6 +84,8 @@ const AI_HINT: Record<EnemyAI, string> = {
   boss_lich: '循环：召唤 summonCount 个 summonKey → 群体伤害并按 stunTurns 冰冻一名友军 → 普通攻击。',
   boss_demon: '每 3 回合群体伤害并打大本营；其余回合攻击最强友军并按 lifesteal 吸血。',
   boss_rag: '每 3 回合熔岩爆发：aoeRatio 群体伤害 + burnDamage 灼烧并打大本营；其余回合重锤最强友军（1.5 倍）并灼烧。',
+  boss_archi: '六回合循环：死亡之指（最强友军 300%，剩余血量低于 executeBelow 直接处决）→ 预警并降下末日火雨 → 末日之火（2 名友军 100% 伤害 + burnDamage 灼烧 3 回合，狂暴后 3 名）→ 再次预警末日火雨。',
+  boss_sarg: '循环：邪能斩（最强友军 160%）→ 举剑蓄力 → 审判之剑贯穿全体：每名英雄失去 swordRatio 比例的最大生命（无视护甲，护盾可吸收），大本营失去 swordBaseRatio 比例的最大生命。',
   boss_cthun: '每 3 回合疯狂低语：aoeRatio 群体伤害、吸走 rageDrain 怒气并打大本营；其余回合黑暗闪耀射击 beamTargets 个友军，击晕其中一个 stunTurns 回合。',
 };
 
@@ -762,6 +764,9 @@ function renderEnemyEditor() {
   el<HTMLInputElement>('enemy-burn').value = String(p.burnDamage ?? 0);
   el<HTMLInputElement>('enemy-beam').value = String(p.beamTargets ?? 0);
   el<HTMLInputElement>('enemy-rage-drain').value = String(p.rageDrain ?? 0);
+  el<HTMLInputElement>('enemy-execute').value = String(p.executeBelow ?? 0);
+  el<HTMLInputElement>('enemy-sword').value = String(p.swordRatio ?? 0);
+  el<HTMLInputElement>('enemy-sword-base').value = String(p.swordBaseRatio ?? 0);
   el('enemy-ai-hint').textContent = AI_HINT[enemy.ai] ?? '';
 }
 
@@ -1016,6 +1021,9 @@ function saveEnemyFields() {
       burnDamage: num('enemy-burn', 0) || undefined,
       beamTargets: num('enemy-beam', 0) || undefined,
       rageDrain: num('enemy-rage-drain', 0) || undefined,
+      executeBelow: num('enemy-execute', 0) || undefined,
+      swordRatio: num('enemy-sword', 0) || undefined,
+      swordBaseRatio: num('enemy-sword-base', 0) || undefined,
     },
   });
   if (newId && newId !== oldId && !data.enemies[newId]) {
@@ -1267,7 +1275,7 @@ function bind() {
   cardFields.forEach(([id, event]) => el(id).addEventListener(event, saveCardFields));
   el('card-id').addEventListener('change', saveCardFields);
 
-  const enemyFields = ['enemy-name', 'enemy-atk', 'enemy-hp', 'enemy-armor', 'enemy-ai', 'enemy-art', 'enemy-model', 'enemy-desc', 'enemy-summon-key', 'enemy-summon-count', 'enemy-cleave', 'enemy-aoe', 'enemy-aoe-base', 'enemy-lifesteal', 'enemy-stun', 'enemy-burn', 'enemy-beam', 'enemy-rage-drain'];
+  const enemyFields = ['enemy-name', 'enemy-atk', 'enemy-hp', 'enemy-armor', 'enemy-ai', 'enemy-art', 'enemy-model', 'enemy-desc', 'enemy-summon-key', 'enemy-summon-count', 'enemy-cleave', 'enemy-aoe', 'enemy-aoe-base', 'enemy-lifesteal', 'enemy-stun', 'enemy-burn', 'enemy-beam', 'enemy-rage-drain', 'enemy-execute', 'enemy-sword', 'enemy-sword-base'];
   enemyFields.forEach((id) => el(id).addEventListener('change', saveEnemyFields));
   el('enemy-boss').addEventListener('change', saveEnemyFields);
   el('enemy-id').addEventListener('change', saveEnemyFields);

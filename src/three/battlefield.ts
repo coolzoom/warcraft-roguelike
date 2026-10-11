@@ -59,6 +59,18 @@ const MOODS: Record<Theme, Record<Mood, MoodDef>> = {
     elite: { fog: 0xa0703a, sky: 0xffd09a, ground: 0x6a4a28, sun: 0xffa050, sunI: 2.1, hemiI: 1.2 },
     rage: { fog: 0x4a1a20, sky: 0xff9a7a, ground: 0x3a1418, sun: 0xff5a3a, sunI: 1.9, hemiI: 0.9 },
   },
+  hyjal: {
+    day: { fog: 0x3a4a24, sky: 0xe0ffc0, ground: 0x2a3a18, sun: 0xd8ffa0, sunI: 2.1, hemiI: 1.3 },
+    boss: { fog: 0x1a2a10, sky: 0xa0ff7a, ground: 0x1a2a10, sun: 0x8aff5a, sunI: 1.6, hemiI: 1.0 },
+    elite: { fog: 0x4a3a1a, sky: 0xe8ffa0, ground: 0x2a2a14, sun: 0xc0ff6a, sunI: 1.9, hemiI: 1.1 },
+    rage: { fog: 0x2a1a0a, sky: 0xc0ff6a, ground: 0x2a1408, sun: 0x9aff3a, sunI: 1.9, hemiI: 0.9 },
+  },
+  argus: {
+    day: { fog: 0x2e2440, sky: 0xd8c8ff, ground: 0x2a2038, sun: 0xb8ffb0, sunI: 2.0, hemiI: 1.3 },
+    boss: { fog: 0x14102a, sky: 0x9aff9a, ground: 0x1a1430, sun: 0x6aff6a, sunI: 1.7, hemiI: 1.0 },
+    elite: { fog: 0x2a2a3a, sky: 0xc8ffc0, ground: 0x24203a, sun: 0x9aff8a, sunI: 1.9, hemiI: 1.1 },
+    rage: { fog: 0x1a0a20, sky: 0xa0ff8a, ground: 0x1a0a1a, sun: 0x5aff3a, sunI: 1.9, hemiI: 0.9 },
+  },
 };
 
 function rng(seed: number) {
@@ -101,6 +113,7 @@ interface GroundPaint {
   off(n: number, f: number, px: number, py: number): RGB;
   /** 0..1 lava/crystal glow off the road; drawn into the emissive map. */
   glow?(n: number, c: number): number;
+  glowColor?: RGB;
   speck: [string, string];
 }
 
@@ -134,6 +147,23 @@ const GROUND: Record<Theme, GroundPaint> = {
       return [212 + 26 * (n - 0.5) + ripple, 174 + 20 * (n - 0.5) + ripple * 0.8, 110 + 14 * (f - 0.5) + ripple * 0.5];
     },
     speck: ['120,92,60', '150,116,70'],
+  },
+  hyjal: {
+    road: (n, f) => [96 + 30 * (n - 0.5) + 22 * (f - 0.5), 84 + 22 * (n - 0.5) + 18 * (f - 0.5), 70 + 14 * (f - 0.5)],
+    off: (n, f) => {
+      const g = 0.7 + 0.5 * n;
+      return [44 * g + 12 * (f - 0.5), 46 * g + 14 * (f - 0.5), 30 * g + 8 * (f - 0.5)];
+    },
+    glow: (n, c) => Math.max(c * 0.45, Math.min(1, Math.max(0, (n - 0.8) / 0.08))),
+    glowColor: [110, 255, 50],
+    speck: ['60,52,44', '24,30,18'],
+  },
+  argus: {
+    road: (n, f) => [82 + 26 * (n - 0.5) + 20 * (f - 0.5), 70 + 20 * (n - 0.5) + 16 * (f - 0.5), 88 + 18 * (f - 0.5)],
+    off: (n, f) => [46 + 24 * n + 10 * (f - 0.5), 30 + 14 * n, 52 + 18 * n],
+    glow: (n, c) => Math.max(c * 0.75, Math.min(1, Math.max(0, (n - 0.74) / 0.08))),
+    glowColor: [90, 255, 80],
+    speck: ['40,30,50', '24,16,30'],
   },
 };
 
@@ -177,10 +207,11 @@ function groundMaterial(theme: Theme) {
       if (glowImg && paint.glow) {
         const crack = 1 - Math.min(1, Math.abs(veins(u, v) - 0.5) / 0.03);
         const gl = paint.glow(n, crack) * Math.min(1, Math.max(0, d - 0.6));
-        b = [b[0] + (255 - b[0]) * gl, b[1] + (120 - b[1]) * gl, b[2] + (24 - b[2]) * gl];
-        glowImg.data[i] = 255 * gl;
-        glowImg.data[i + 1] = 110 * gl;
-        glowImg.data[i + 2] = 20 * gl;
+        const [gr, gg, gb] = paint.glowColor ?? [255, 115, 22];
+        b = [b[0] + (gr - b[0]) * gl, b[1] + (gg - b[1]) * gl, b[2] + (gb - b[2]) * gl];
+        glowImg.data[i] = gr * gl;
+        glowImg.data[i + 1] = gg * gl;
+        glowImg.data[i + 2] = gb * gl;
         glowImg.data[i + 3] = 255;
       }
       img.data[i] = a[0] + (b[0] - a[0]) * off;
@@ -288,7 +319,13 @@ interface FlameKind {
 const ember = (color: number) =>
   new THREE.PointsMaterial({ color, size: 0.12, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
 
-const FLAMES: Record<'orange' | 'purple', FlameKind> = {
+const FLAMES: Record<'orange' | 'purple' | 'fel', FlameKind> = {
+  fel: {
+    out: new THREE.MeshBasicMaterial({ color: 0x5aff2a, transparent: true, opacity: 0.9 }),
+    core: new THREE.MeshBasicMaterial({ color: 0xe0ffa0 }),
+    ember: ember(0x8aff4a),
+    light: 0x6aff3a,
+  },
   orange: {
     out: new THREE.MeshBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0.9 }),
     core: new THREE.MeshBasicMaterial({ color: 0xffe07a }),
@@ -482,6 +519,114 @@ function ruinedArch(r: () => number) {
   return shadowed(g);
 }
 
+// ---- Burning Hyjal / Argus props
+
+const FEL = {
+  char: toon(0x2a2420),
+  charDark: toon(0x1a1614),
+  ash: toon(0x5a5650),
+  glow: new THREE.MeshBasicMaterial({ color: 0x6aff3a }),
+  crystal: new THREE.MeshBasicMaterial({ color: 0x5aff6a, transparent: true, opacity: 0.88 }),
+  crystalCore: new THREE.MeshBasicMaterial({ color: 0xd8ffd0 }),
+  rock: toon(0x3a2e4a),
+  rockDark: toon(0x261e34),
+  green: toon(0x2a8a2a),
+  black: toon(0x1a1a1e),
+  purple: toon(0x4a2a6a),
+};
+
+function charredPine(r: () => number) {
+  const g = new THREE.Group();
+  const s = 0.8 + r() * 0.6;
+  add(g, cyl(0.14, 0.22, 2.4, FEL.charDark, 6), 0, 1.2, 0);
+  for (let i = 0; i < 4; i++) {
+    const b = add(g, cyl(0.03, 0.06, 0.9, FEL.charDark, 5), 0, 1.3 + i * 0.35, 0);
+    b.rotation.set(0, r() * Math.PI * 2, 0.9 + r() * 0.4);
+  }
+  if (r() < 0.6) {
+    const crown = add(g, new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.2, 7), FEL.char), 0, 2.6, 0);
+    crown.rotation.y = r() * Math.PI;
+  }
+  add(g, cyl(0.24, 0.26, 0.1, FEL.glow, 6), 0, 0.2 + r() * 0.5, 0);
+  g.scale.setScalar(s);
+  g.rotation.y = r() * Math.PI;
+  return shadowed(g);
+}
+
+function burntStump(r: () => number) {
+  const g = new THREE.Group();
+  add(g, cyl(0.3, 0.38, 0.5 + r() * 0.3, FEL.char, 7), 0, 0.3, 0);
+  for (let i = 0; i < 3; i++) {
+    const e = add(g, new THREE.Mesh(new THREE.DodecahedronGeometry(0.07, 0), FEL.glow), (r() - 0.5) * 0.5, 0.05, (r() - 0.5) * 0.5);
+    e.scale.y = 0.5;
+  }
+  return shadowed(g);
+}
+
+function ashRock(r: () => number) {
+  const m = new THREE.Mesh(new THREE.DodecahedronGeometry(0.4 + r() * 0.45, 0), r() < 0.5 ? FEL.ash : FEL.char);
+  m.scale.set(1, 0.55 + r() * 0.3, 0.8 + r() * 0.4);
+  m.rotation.set(r(), r() * 3, r());
+  m.position.y = 0.1;
+  return shadowed(m);
+}
+
+function felPyre(fires: Fire[]) {
+  const g = new THREE.Group();
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    add(g, new THREE.Mesh(new THREE.DodecahedronGeometry(0.17, 0), FEL.charDark), Math.cos(a) * 0.5, 0.08, Math.sin(a) * 0.5).castShadow = true;
+  }
+  addFlame(g, fires, FLAMES.fel);
+  return g;
+}
+
+function felCrystals(r: () => number) {
+  const g = new THREE.Group();
+  for (let i = 0; i < 4; i++) {
+    const h = 0.5 + r() * 1.0;
+    const c = add(g, new THREE.Mesh(new THREE.OctahedronGeometry(0.2 + r() * 0.1, 0), i === 0 ? FEL.crystalCore : FEL.crystal), (r() - 0.5) * 0.6, h / 2, (r() - 0.5) * 0.6);
+    c.scale.y = h / 0.4;
+    c.rotation.set((r() - 0.5) * 0.5, r() * 3, (r() - 0.5) * 0.5);
+  }
+  add(g, new THREE.Mesh(new THREE.DodecahedronGeometry(0.3, 0), FEL.rockDark), 0, 0.1, 0).scale.y = 0.5;
+  return g;
+}
+
+function argusRock(r: () => number) {
+  const m = new THREE.Mesh(new THREE.DodecahedronGeometry(0.4 + r() * 0.5, 0), r() < 0.5 ? FEL.rock : FEL.rockDark);
+  m.scale.set(1, 0.5 + r() * 0.5, 0.8 + r() * 0.4);
+  m.rotation.set(r(), r() * 3, r());
+  m.position.y = 0.1;
+  return shadowed(m);
+}
+
+/** Jagged rock spire torn up from the broken world, veined with fel. */
+function argusSpire(r: () => number) {
+  const g = new THREE.Group();
+  const h = 2.4 + r() * 3.2;
+  const main = add(g, new THREE.Mesh(new THREE.ConeGeometry(0.55 + r() * 0.4, h, 5), r() < 0.5 ? FEL.rock : FEL.rockDark), 0, h / 2, 0);
+  main.rotation.z = (r() - 0.5) * 0.25;
+  for (let i = 0; i < 2; i++) {
+    const s = 0.8 + r() * 1.2;
+    const a = r() * Math.PI * 2;
+    add(g, new THREE.Mesh(new THREE.ConeGeometry(0.25 + r() * 0.2, s, 4), FEL.rockDark), Math.cos(a) * 0.6, s / 2, Math.sin(a) * 0.6);
+  }
+  add(g, cyl(0.5, 0.56, 0.07, FEL.glow, 5), 0, 0.3 + r() * 0.8, 0);
+  g.rotation.y = r() * Math.PI;
+  return shadowed(g);
+}
+
+function felShards(r: () => number) {
+  const g = new THREE.Group();
+  for (let i = 0; i < 5; i++) {
+    const h = 0.8 + r() * 1.4;
+    const shard = add(g, new THREE.Mesh(new THREE.ConeGeometry(0.18 + r() * 0.12, h, 4), r() < 0.35 ? FEL.crystal : FEL.rockDark), (i - 2) * 0.4, h / 2 - 0.1, (r() - 0.5) * 0.4);
+    shard.rotation.set((r() - 0.5) * 0.6, r() * 3, (r() - 0.5) * 0.6);
+  }
+  return shadowed(g);
+}
+
 /** The prop kit a theme dresses each placement slot with; the layout itself is shared. */
 interface Kit {
   fire(fires: Fire[]): THREE.Object3D;
@@ -512,6 +657,24 @@ const KITS: Record<Theme, Kit> = {
     rock: sandBlock,
     tall: pillar,
     mote: 0xe8d0a0,
+  },
+  hyjal: {
+    fire: felPyre,
+    wall: barricade,
+    banners: [FEL.green, FEL.black],
+    small: burntStump,
+    rock: ashRock,
+    tall: charredPine,
+    mote: 0x8aff4a,
+  },
+  argus: {
+    fire: (f) => brazier(f, FEL.rockDark, FLAMES.fel),
+    wall: felShards,
+    banners: [FEL.green, FEL.purple],
+    small: felCrystals,
+    rock: argusRock,
+    tall: argusSpire,
+    mote: 0x7aff8a,
   },
 };
 

@@ -90,6 +90,7 @@ export const TELEGRAPHS: Record<string, TelegraphDef> = {
   boss_demon: { name: '邪能陨石', color: 0x8aff4a, element: 'fire', pattern: 3 },
   boss_rag: { name: '烈焰之浪', color: 0xff6a1a, element: 'fire', pattern: 'row' },
   boss_cthun: { name: '触须钻地', color: 0xb070ff, element: 'arcane', pattern: 3 },
+  boss_archi: { name: '末日火雨', color: 0x6aff3a, element: 'fire', pattern: 'row' },
 };
 
 // ---------------------------------------------------------------- synergies

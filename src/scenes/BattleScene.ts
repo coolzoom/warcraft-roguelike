@@ -95,6 +95,8 @@ interface Unit {
   frozen: boolean;
   /** Boss has entered its second phase. */
   enraged?: boolean;
+  /** Sargeras raised his sword last turn; it falls this turn. */
+  charging?: boolean;
 }
 
 interface Hit {
@@ -103,6 +105,8 @@ interface Hit {
   from?: Unit;
   /** Splash and damage over time don't set off reactions. */
   noReact?: boolean;
+  /** Fixed-fraction hits (Sargeras's sword): no armor, row or synergy reduction; shields still absorb. */
+  exact?: boolean;
 }
 
 const realWait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -132,6 +136,8 @@ const REALM_TITLES: Record<Theme, [string, string]> = {
   forest: ['🌲 重返林间大道', '#a8e07a'],
   molten: ['🔥 熔火之心', '#ff8a3a'],
   temple: ['🏜 安其拉神殿', '#d8b0ff'],
+  hyjal: ['🌋 燃烧的海加尔山', '#8aff5a'],
+  argus: ['☄️ 破碎的阿古斯', '#7af0a0'],
 };
 /** Drags starting on empty ground between the top bar and the bottom HUD orbit the camera. */
 const ORBIT_TOP = 56;
@@ -1319,12 +1325,12 @@ export class BattleScene extends Phaser.Scene {
     let bonus = react === 'steam' ? 8 + raw * 0.5 : react === 'overload' ? (u.burn?.dmg ?? 0) * 3 + 4 : 0;
     if (bonus && this.has('hammer')) bonus *= 1.5;
     raw += bonus;
-    if (u.side === 'ally') {
+    if (u.side === 'ally' && !hit.exact) {
       const warrior = this.tiers().warrior.tier;
       raw -= warrior >= 2 ? 3 : warrior ? 1 : 0;
       if (FRONT_SLOTS.includes(u.slot)) raw *= FRONT_DAMAGE_TAKEN;
     }
-    let dmg = Math.max(1, Math.round(raw) - u.armor);
+    let dmg = Math.max(1, Math.round(raw) - (hit.exact ? 0 : u.armor));
     if (u.shield > 0) {
       const absorbed = Math.min(u.shield, dmg);
       u.shield -= absorbed;
@@ -1571,19 +1577,81 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: g, alpha: 0, duration: 300, onComplete: () => g.destroy() });
   }
 
-  /** C'Thun's gaze: a thick amber beam from the eye that holds briefly, then thins out. */
-  private async eyeBeam(src: UnitView, dst: { x: number; y: number }) {
+  /**
+   * Sargeras's ultimate: a giant fel blade thrusts from behind him down through the hero rows to the base.
+   * Every hero loses `ratio` of max HP (shields absorb), the base loses `baseRatio` of its max HP.
+   */
+  private async judgementSword(boss: Unit, ratio: number, baseRatio: number) {
+    const { width } = this.scale;
+    const title = txt(this, width / 2, 300, '审判之剑！', 54, '#9dff6a', 8).setDepth(56).setScale(2.2).setAlpha(0);
+    this.tweens.add({ targets: title, scale: 1, alpha: 1, duration: 240, ease: 'Back.out' });
+    await boss.view.act('attack');
+    const at = this.pt(boss.view.x, boss.view.y);
+    const L = 640;
+    const W = 120;
+    const sword = this.add.container(at.x, at.y - L - 60).setDepth(48).setAlpha(0);
+    const glow = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+    glow.fillStyle(0x6aff3a, 0.35).fillPoints(
+      [new Phaser.Geom.Point(-W * 0.8, -10), new Phaser.Geom.Point(W * 0.8, -10), new Phaser.Geom.Point(W * 0.6, L * 0.86), new Phaser.Geom.Point(0, L + 30), new Phaser.Geom.Point(-W * 0.6, L * 0.86)],
+      true,
+    );
+    const blade = this.add.graphics();
+    blade.fillStyle(0x2f9a1a, 1).lineStyle(4, 0x123a0a, 1);
+    const edge = [new Phaser.Geom.Point(-W / 2, 0), new Phaser.Geom.Point(W / 2, 0), new Phaser.Geom.Point(W * 0.4, L * 0.86), new Phaser.Geom.Point(0, L), new Phaser.Geom.Point(-W * 0.4, L * 0.86)];
+    blade.fillPoints(edge, true).strokePoints(edge, true);
+    // jagged teeth along both edges
+    blade.fillStyle(0x2f9a1a, 1);
+    for (let i = 1; i < 6; i++) {
+      const y = (L * 0.8 * i) / 6;
+      const w = (W / 2) * (1 - (0.2 * y) / (L * 0.86));
+      blade.fillTriangle(w, y, w + 18, y + 14, w - 4, y + 40);
+      blade.fillTriangle(-w, y, -w - 18, y + 14, -w + 4, y + 40);
+    }
+    blade.fillStyle(0xd8ffb0, 0.95).fillPoints([new Phaser.Geom.Point(-W * 0.12, 10), new Phaser.Geom.Point(W * 0.12, 10), new Phaser.Geom.Point(0, L * 0.9)], true);
+    const hilt = this.add.graphics();
+    hilt.fillStyle(0x8a6a3a, 1).lineStyle(3, 0x2a1a0a, 1);
+    hilt.fillRect(-W * 1.1, -28, W * 2.2, 28).strokeRect(-W * 1.1, -28, W * 2.2, 28);
+    hilt.fillStyle(0x3a2418, 1).fillRect(-16, -130, 32, 102);
+    hilt.fillStyle(0x6aff3a, 1).fillCircle(0, -146, 22).fillStyle(0xd8ffb0, 1).fillCircle(0, -146, 9);
+    sword.add([glow, blade, hilt]);
+
+    this.cameras.main.shake(300, 0.004);
+    await tweenP(this, { targets: sword, alpha: 1, y: at.y - L + 40, duration: 380, ease: 'Sine.out' });
+    // thrust: the tip runs past the hero rows down to the base
+    await tweenP(this, { targets: sword, y: BASE_POS.y + 120 - L, duration: 220, ease: 'Quad.in' });
+    this.cameras.main.flash(260, 120, 255, 90);
+    this.cameras.main.shake(700, 0.024);
+    this.hitStop(140);
+    const allies = this.liveAllies();
+    allies.forEach((a, i) => {
+      const p = this.pt(a.view.x, a.view.y);
+      const slash = this.add.rectangle(p.x, p.y, 10, 150, 0xd8ffb0).setDepth(49).setAngle(-35 + i * 17);
+      this.tweens.add({ targets: slash, scaleX: 0.2, scaleY: 1.6, alpha: 0, duration: 420, onComplete: () => slash.destroy() });
+      this.burst(a.view.x, a.view.y, 0x6aff3a, 18);
+      this.damage(a, Math.ceil(a.maxHp * ratio), { exact: true, noReact: true });
+    });
+    const ring = this.add.circle(at.x, BASE_POS.y - 120, 30, 0x6aff3a, 0.35).setDepth(47).setStrokeStyle(6, 0xb8ff7a);
+    this.tweens.add({ targets: ring, scale: 9, alpha: 0, duration: 650, ease: 'Cubic.out', onComplete: () => ring.destroy() });
+    this.damageBase(Math.ceil(this.baseMaxHp * baseRatio));
+    await wait(this, 500);
+    this.tweens.add({ targets: title, alpha: 0, y: '-=30', duration: 300, onComplete: () => title.destroy() });
+    await tweenP(this, { targets: sword, alpha: 0, y: '+=80', duration: 360, ease: 'Quad.in' });
+    sword.destroy();
+  }
+
+  /** A thick beam from high on the caster that holds briefly, then thins out (C'Thun's gaze, Finger of Death). */
+  private async eyeBeam(src: UnitView, dst: { x: number; y: number }, core = 0xffd84a, glow = 0x7a30c0) {
     const from = this.pt(src.x, src.y - src.radius * 1.3);
     const to = this.pt(dst.x, dst.y);
     const g = this.add.graphics().setDepth(30);
     const draw = (w: number) => {
       g.clear();
-      g.lineStyle(w * 2.4, 0x7a30c0, 0.45).lineBetween(from.x, from.y, to.x, to.y);
-      g.lineStyle(w, 0xffd84a, 1).lineBetween(from.x, from.y, to.x, to.y);
+      g.lineStyle(w * 2.4, glow, 0.45).lineBetween(from.x, from.y, to.x, to.y);
+      g.lineStyle(w, core, 1).lineBetween(from.x, from.y, to.x, to.y);
     };
     const s = { w: 2 };
     await tweenP(this, { targets: s, w: 12, duration: 140, ease: 'Quad.out', onUpdate: () => draw(s.w) });
-    this.burst(dst.x, dst.y, 0xffd84a, 12);
+    this.burst(dst.x, dst.y, core, 12);
     this.cameras.main.shake(120, 0.006);
     await tweenP(this, { targets: s, w: 0, duration: 220, ease: 'Quad.in', onUpdate: () => draw(s.w) });
     g.destroy();
@@ -1849,6 +1917,54 @@ export class BattleScene extends Phaser.Scene {
           }
         } else {
           await this.enemyHit(e, null);
+        }
+        break;
+      }
+      case 'boss_archi': {
+        const allies = this.liveAllies();
+        if (!allies.length) {
+          await this.enemyHit(e, null);
+        } else if (e.turns % 6 === 1) {
+          const t = allies.reduce((x, y) => (this.atkOf(y) > this.atkOf(x) ? y : x));
+          this.floatText(e.view.x, e.view.y + 80, '死亡之指！', '#7dff4a', 28);
+          await e.view.act('cast');
+          this.cameras.main.flash(160, 80, 255, 60);
+          await this.eyeBeam(e.view, t.view, 0xb8ff7a, 0x1a6a10);
+          this.damage(t, this.atkOf(e) * 3, { element: 'fire' });
+          if (!t.dead && t.hp < t.maxHp * (p.executeBelow ?? 0.3)) {
+            this.floatText(t.view.x, t.view.y - 70, '处决！', '#7dff4a', 24);
+            this.damage(t, t.hp + t.shield, { exact: true, noReact: true });
+          }
+        } else {
+          this.floatText(e.view.x, e.view.y + 80, '末日之火！', '#7dff4a', 26);
+          await e.view.act('cast');
+          const targets = Phaser.Utils.Array.Shuffle(allies.slice()).slice(0, 2 + (e.enraged ? 1 : 0)) as Unit[];
+          await Promise.all(targets.map((t) => this.projectile(e.view, t.view, 0x6aff3a, 14)));
+          for (const t of targets) {
+            this.burst(t.view.x, t.view.y, 0x6aff3a, 14);
+            this.damage(t, this.atkOf(e), { element: 'fire' });
+            if (!t.dead) this.applyBurn(t, p.burnDamage ?? 5, 3);
+          }
+        }
+        break;
+      }
+      case 'boss_sarg': {
+        const allies = this.liveAllies();
+        if (e.turns % 3 === 0 && e.charging) {
+          e.charging = false;
+          await this.judgementSword(e, p.swordRatio ?? 0.8, p.swordBaseRatio ?? 0.5);
+        } else if (e.turns % 3 === 2) {
+          e.charging = true;
+          this.floatText(e.view.x, e.view.y + 80, '萨格拉斯举起了巨剑……', '#7dff4a', 24);
+          await e.view.act('cast');
+          this.cameras.main.shake(500, 0.006);
+          const warn = txt(this, this.scale.width / 2, 470, '下回合：审判之剑贯穿全体！', 26, '#ff5a3a', 6).setDepth(55).setAlpha(0);
+          this.tweens.add({ targets: warn, alpha: 1, duration: 200, yoyo: true, hold: 1300, onComplete: () => warn.destroy() });
+          await wait(this, 900);
+        } else {
+          const strongest = allies.length ? allies.reduce((x, y) => (this.atkOf(y) > this.atkOf(x) ? y : x)) : null;
+          if (strongest) this.floatText(e.view.x, e.view.y + 80, '邪能斩！', '#7dff4a', 22);
+          await this.enemyHit(e, strongest, 1.6);
         }
         break;
       }
